@@ -36,6 +36,8 @@ export type UseLiveApiResults = {
   connected: boolean;
 
   volume: number;
+  isSpeakerMuted: boolean;
+  toggleSpeakerMute: () => void;
 };
 
 async function handleSendEmail(
@@ -193,6 +195,15 @@ export function useLiveApi({
   const [volume, setVolume] = useState(0);
   const [connected, setConnected] = useState(false);
   const [config, setConfig] = useState<LiveConnectConfig>({});
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
+
+  const toggleSpeakerMute = useCallback(() => {
+    if (audioStreamerRef.current) {
+      const newMutedState = !isSpeakerMuted;
+      audioStreamerRef.current.setMuted(newMutedState);
+      setIsSpeakerMuted(newMutedState);
+    }
+  }, [isSpeakerMuted]);
 
   // register audio for streaming server -> speakers
   useEffect(() => {
@@ -322,6 +333,10 @@ export function useLiveApi({
     if (!config) {
       throw new Error('config has not been set');
     }
+    // Do not reconnect if already connected or connecting
+    if (client.status === 'connected' || client.status === 'connecting') {
+      return;
+    }
     client.disconnect();
     await client.connect(config);
   }, [client, config]);
@@ -339,5 +354,7 @@ export function useLiveApi({
     connected,
     disconnect,
     volume,
+    isSpeakerMuted,
+    toggleSpeakerMute,
   };
 }

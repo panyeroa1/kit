@@ -216,6 +216,12 @@ export class AudioStreamer {
     }
   }
 
+  public setMuted(muted: boolean) {
+    if (this.context.state === 'running') {
+        this.gainNode.gain.setValueAtTime(muted ? 0 : 1, this.context.currentTime);
+    }
+  }
+
   stop() {
     this.isPlaying = false;
     this.isStreamComplete = true;

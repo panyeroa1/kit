@@ -23,6 +23,7 @@ import ControlTray from './components/console/control-tray/ControlTray';
 import ErrorScreen from './components/demo/ErrorScreen';
 import StreamingConsole from './components/demo/streaming-console/StreamingConsole';
 import VoiceCall from './components/demo/VoiceCall';
+import cn from 'classnames';
 
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -176,20 +177,20 @@ function App() {
     <div className="App">
       <LiveAPIProvider apiKey={API_KEY}>
         <ErrorScreen />
-        {isVoiceCallActive && <VoiceCall />}
+        {/* VoiceCall is always rendered to preserve its state (and the connection)
+            even when not visible. Visibility is controlled by CSS. */}
+        <VoiceCall />
         {isWhatsAppModalOpen && <WhatsAppModal />}
-        {!isVoiceCallActive && (
-          <>
-            <Header />
-            <Sidebar />
-            <div className="main-container">
-              <main>
-                <StreamingConsole />
-                <ControlTray />
-              </main>
-            </div>
-          </>
-        )}
+        <div className={cn('main-ui-wrapper', { 'hidden': isVoiceCallActive })}>
+          <Header />
+          <Sidebar />
+          <div className="main-container">
+            <main>
+              <StreamingConsole />
+              <ControlTray />
+            </main>
+          </div>
+        </div>
         <Snackbar />
       </LiveAPIProvider>
     </div>

@@ -379,6 +379,18 @@ button .icon {
   flex-direction: column;
 }
 
+/* New layout structure for toggling UI */
+.main-ui-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.main-ui-wrapper.hidden {
+  display: none;
+}
+
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -1382,6 +1394,7 @@ form button:first-of-type {
 
 /* Voice Call UI */
 .voice-call-overlay {
+  display: none; /* Hidden by default */
   position: fixed;
   inset: 0;
   background-color: transparent;
@@ -1393,10 +1406,12 @@ form button:first-of-type {
   background-position: center;
   background-size: cover;
   z-index: 999;
-  display: flex;
   flex-direction: column;
   color: var(--text-primary);
   overflow: hidden;
+}
+.voice-call-overlay.active {
+  display: flex; /* Shown when active class is present */
 }
 
 .satellite {

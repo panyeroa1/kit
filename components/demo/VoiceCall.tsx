@@ -9,6 +9,23 @@ import { useUI, useUserSettings } from '../../lib/state';
 import { AudioRecorder } from '../../lib/audio-recorder';
 import cn from 'classnames';
 
+const FRAME_RATE = 2; // Send 2 frames per second
+const JPEG_QUALITY = 0.6; // Image quality for sent frames
+
+// Helper to convert a Blob to a Base64 string, extracting only the data part.
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = (reader.result as string).split(',')[1];
+      resolve(base64String);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+
 const VoiceCall = () => {
   const {
     client,
@@ -16,20 +33,28 @@ const VoiceCall = () => {
     disconnect,
     connected,
     volume, // This is the agent's output volume
+    isSpeakerMuted,
+    toggleSpeakerMute,
   } = useLiveAPIContext();
-  const { hideVoiceCall } = useUI();
+  const { isVoiceCallActive, hideVoiceCall } = useUI();
   const { personaName } = useUserSettings();
 
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [userVolume, setUserVolume] = useState(0); // State for user's input volume
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const frameIntervalRef = useRef<number | null>(null);
+
 
   useEffect(() => {
-    // Automatically connect when the component mounts
-    connect();
-  }, [connect]);
+    // Automatically connect when the voice call UI becomes active
+    if (isVoiceCallActive) {
+      connect();
+    }
+  }, [isVoiceCallActive, connect]);
 
   // Handle user's input volume for visualization
   useEffect(() => {
@@ -54,7 +79,7 @@ const VoiceCall = () => {
         },
       ]);
     };
-    if (connected && !isMuted && audioRecorder) {
+    if (isVoiceCallActive && connected && !isMuted && audioRecorder) {
       audioRecorder.on('data', onData);
       audioRecorder.start();
     } else {
@@ -64,7 +89,7 @@ const VoiceCall = () => {
       audioRecorder.stop();
       audioRecorder.off('data', onData);
     };
-  }, [connected, client, isMuted, audioRecorder]);
+  }, [isVoiceCallActive, connected, client, isMuted, audioRecorder]);
 
   // Handle camera stream
   useEffect(() => {
@@ -84,7 +109,7 @@ const VoiceCall = () => {
 
     const enableCamera = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
         if (cancelled) {
           stream.getTracks().forEach(track => track.stop());
           return;
@@ -111,7 +136,47 @@ const VoiceCall = () => {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isCameraOn]);
+  }, [isCameraOn, facingMode]);
+
+  // Effect to stream video frames to the API
+  useEffect(() => {
+    if (isCameraOn && connected && videoRef.current && canvasRef.current) {
+      const videoEl = videoRef.current;
+      const canvasEl = canvasRef.current;
+      const ctx = canvasEl.getContext('2d');
+
+      if (!ctx) return;
+
+      frameIntervalRef.current = window.setInterval(() => {
+        canvasEl.width = videoEl.videoWidth;
+        canvasEl.height = videoEl.videoHeight;
+        ctx.drawImage(videoEl, 0, 0, videoEl.videoWidth, videoEl.videoHeight);
+        canvasEl.toBlob(
+          async (blob) => {
+            if (blob) {
+              const base64Data = await blobToBase64(blob);
+              client.sendRealtimeInput([
+                {
+                  mimeType: 'image/jpeg',
+                  data: base64Data,
+                },
+              ]);
+            }
+          },
+          'image/jpeg',
+          JPEG_QUALITY
+        );
+      }, 1000 / FRAME_RATE);
+    }
+
+    return () => {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+        frameIntervalRef.current = null;
+      }
+    };
+  }, [isCameraOn, connected, client]);
+
 
   const handleEndCall = () => {
     disconnect();
@@ -126,24 +191,41 @@ const VoiceCall = () => {
     setIsCameraOn(!isCameraOn);
   };
 
+  const handleCameraSwitch = () => {
+    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
+  };
+
   // Define thresholds for speaking state
   const isUserSpeaking = userVolume > 0.01;
   const isAgentSpeaking = volume > 0.01;
   const isIdle = !isUserSpeaking && !isAgentSpeaking;
 
   return (
-    <div className="voice-call-overlay">
+    <div className={cn('voice-call-overlay', { 'active': isVoiceCallActive })}>
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
       <div className="satellite">
         <span className="material-symbols-outlined">satellite_alt</span>
       </div>
       <header className="voice-call-header">
         <span className="voice-call-persona-name">{personaName}</span>
         <div className="voice-call-header-actions">
-          <button className="icon-button" aria-label="Closed captions">
-            <span className="material-symbols-outlined">closed_caption</span>
-          </button>
-          <button className="icon-button" aria-label="Volume">
-            <span className="material-symbols-outlined">volume_up</span>
+          {isCameraOn && (
+            <button
+              className="icon-button"
+              aria-label="Switch camera"
+              onClick={handleCameraSwitch}
+            >
+              <span className="material-symbols-outlined">cameraswitch</span>
+            </button>
+          )}
+          <button
+            className="icon-button"
+            aria-label={isSpeakerMuted ? 'Unmute speaker' : 'Mute speaker'}
+            onClick={toggleSpeakerMute}
+          >
+            <span className="material-symbols-outlined">
+              {isSpeakerMuted ? 'volume_off' : 'volume_up'}
+            </span>
           </button>
           <button className="icon-button" aria-label="More options">
             <span className="material-symbols-outlined">tune</span>
@@ -198,8 +280,12 @@ const VoiceCall = () => {
             {isMuted ? 'mic_off' : 'mic'}
           </span>
         </button>
-        <button className="voice-call-button" aria-label="More options">
-          <span className="material-symbols-outlined">more_horiz</span>
+        <button
+          className="voice-call-button"
+          aria-label="Open chat"
+          onClick={hideVoiceCall}
+        >
+          <span className="material-symbols-outlined">chat</span>
         </button>
         <button
           className="voice-call-button end-call"
