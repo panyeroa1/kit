@@ -19,7 +19,7 @@
  */
 
 // Fix: Import React to resolve 'Cannot find namespace React' error.
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { useLogStore, useUI } from '@/lib/state';
@@ -139,11 +139,31 @@ PROMPT REFERENCES
    Purpose: Generate structured documentation (Diátaxis framework).  
    Persona: Formal, authoritative, strictly technical.`;
 
+const fileToBase64 = (
+  file: File,
+): Promise<{ data: string; mimeType: string }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = (reader.result as string).split(',')[1];
+      resolve({ data: base64String, mimeType: file.type });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
 
 function ControlTray() {
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
   const [text, setText] = useState('');
+  const [attachedImage, setAttachedImage] = useState<{
+    data: string;
+    mimeType: string;
+  } | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { showVoiceCall, isVoiceCallActive } = useUI();
   const { client, connected } = useLiveAPIContext();
   const { addTurn, updateLastTurn } = useLogStore();
@@ -186,12 +206,34 @@ function ControlTray() {
     }
   };
 
+  const removeImage = () => {
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
+    setAttachedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Reset file input
+    }
+  };
+
   const handleSendText = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() && !attachedImage) return;
 
     const currentText = text;
-    addTurn({ role: 'user', text: currentText, isFinal: true });
+    const currentImage = attachedImage;
+    const currentPreview = imagePreview;
+
+    addTurn({
+      role: 'user',
+      text: currentText,
+      image: currentPreview,
+      isFinal: true,
+    });
+
+    // Clear inputs immediately
     setText('');
+    removeImage();
 
     try {
       // Fix: Use process.env.API_KEY per coding guidelines.
@@ -205,11 +247,24 @@ function ControlTray() {
         .getState()
         .turns.map(turn => ({
           role: turn.role === 'agent' ? 'model' : 'user',
-          parts: [{ text: turn.text }],
+          parts: [{ text: turn.text }], // History doesn't include images for now
         }))
         .filter(turn => turn.role === 'user' || turn.role === 'model');
 
-      const contents = [...history];
+      const userParts: any[] = [];
+      if (currentImage) {
+        userParts.push({
+          inlineData: {
+            mimeType: currentImage.mimeType,
+            data: currentImage.data,
+          },
+        });
+      }
+      if (currentText) {
+        userParts.push({ text: currentText });
+      }
+
+      const contents = [...history, { role: 'user', parts: userParts }];
 
       const stream = await ai.models.generateContentStream({
         model: 'gemini-2.5-flash',
@@ -241,7 +296,6 @@ function ControlTray() {
     }
   };
 
-
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -249,54 +303,107 @@ function ControlTray() {
     }
   };
 
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+      const { data, mimeType } = await fileToBase64(file);
+      setAttachedImage({ data, mimeType });
+    }
+  };
+
   return (
     <section className="control-tray">
       <div className="input-bar-wrapper">
-        <button
-          className="icon-button"
-          aria-label="Attach image"
-          disabled={isVoiceCallActive}
-        >
-          <span className="material-symbols-outlined">add_photo_alternate</span>
-        </button>
-        <input
-          type="text"
-          placeholder="Ask anything"
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isVoiceCallActive}
-        />
-        <div className="input-actions">
-          {text ? (
-            <button
-              className="icon-button"
-              onClick={handleSendText}
-              aria-label="Send message"
-              disabled={isVoiceCallActive}
-            >
-              <span className="material-symbols-outlined">send</span>
-            </button>
-          ) : (
-            <button
-              className="icon-button"
-              onClick={handleMuteToggle}
-              aria-label={muted ? 'Unmute' : 'Mute'}
-              disabled={!connected || isVoiceCallActive}
-            >
-              <span className="material-symbols-outlined filled">
-                {muted ? 'mic_off' : 'mic'}
-              </span>
-            </button>
-          )}
+        {imagePreview && (
+          <div className="image-preview-container">
+            <div className="image-preview">
+              <img src={imagePreview} alt="Attachment preview" />
+              <button
+                className="remove-image-button icon-button"
+                onClick={removeImage}
+                aria-label="Remove image"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="input-row">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            style={{ display: 'none' }}
+            accept="image/*"
+          />
           <button
             className="icon-button"
-            onClick={handleShowVoiceCall}
-            aria-label={'Start voice conversation'}
-            disabled={connected}
+            aria-label="Attach image"
+            onClick={handleImageButtonClick}
+            disabled={isVoiceCallActive}
           >
-            <span className="material-symbols-outlined filled">graphic_eq</span>
+            <span className="material-symbols-outlined">
+              add_photo_alternate
+            </span>
           </button>
+          <input
+            type="text"
+            placeholder={attachedImage ? 'Add a message...' : 'Ask anything'}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isVoiceCallActive}
+          />
+          <div className="input-actions">
+            {text || attachedImage ? (
+              <button
+                className="icon-button"
+                onClick={handleSendText}
+                aria-label="Send message"
+                disabled={isVoiceCallActive}
+              >
+                <span className="material-symbols-outlined">send</span>
+              </button>
+            ) : (
+              <button
+                className="icon-button"
+                onClick={handleMuteToggle}
+                aria-label={muted ? 'Unmute' : 'Mute'}
+                disabled={!connected || isVoiceCallActive}
+              >
+                <span className="material-symbols-outlined filled">
+                  {muted ? 'mic_off' : 'mic'}
+                </span>
+              </button>
+            )}
+            {connected && !isVoiceCallActive ? (
+              <button
+                className="icon-button"
+                onClick={showVoiceCall}
+                aria-label="Return to voice call"
+              >
+                <span className="material-symbols-outlined filled">close</span>
+              </button>
+            ) : (
+              <button
+                className="icon-button"
+                onClick={handleShowVoiceCall}
+                aria-label={'Start voice conversation'}
+                disabled={connected}
+              >
+                <span className="material-symbols-outlined filled">
+                  graphic_eq
+                </span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </section>

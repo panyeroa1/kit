@@ -220,6 +220,13 @@ export default function StreamingConsole() {
                 </div>
               </div>
               <div className="transcription-text-content">
+                {t.image && (
+                  <img
+                    src={t.image}
+                    alt="User attachment"
+                    className="attached-image"
+                  />
+                )}
                 {renderContent(t.text)}
               </div>
               {t.groundingChunks && t.groundingChunks.length > 0 && (

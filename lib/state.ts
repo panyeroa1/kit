@@ -769,6 +769,7 @@ export interface ConversationTurn {
   role: 'user' | 'agent' | 'system';
   text: string;
   isFinal: boolean;
+  image?: string | null;
   toolUseRequest?: LiveServerToolCall;
   toolUseResponse?: LiveClientToolResponse;
   groundingChunks?: GroundingChunk[];
