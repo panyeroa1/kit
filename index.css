@@ -1386,7 +1386,16 @@ form button:first-of-type {
   align-items: center;
   overflow: hidden;
   position: relative;
-  transition: box-shadow 0.2s ease-out; /* Add transition for smooth pulsing */
+}
+
+.voice-call-visualizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .voice-call-orb-effect {

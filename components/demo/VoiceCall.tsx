@@ -25,6 +25,10 @@ const VoiceCall = () => {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [userVolume, setUserVolume] = useState(0); // State for user's input volume
   const videoRef = useRef<HTMLVideoElement>(null);
+  const visualizerRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameId = useRef<number>();
+  const smoothedUserVolume = useRef(0);
+  const smoothedAgentVolume = useRef(0);
 
   useEffect(() => {
     // Automatically connect when the component mounts
@@ -113,6 +117,95 @@ const VoiceCall = () => {
     };
   }, [isCameraOn]);
 
+  // Canvas audio visualizer animation
+  useEffect(() => {
+    const canvas = visualizerRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resizeCanvas = () => {
+      const { width, height } = canvas.getBoundingClientRect();
+      if (canvas.width !== width || canvas.height !== height) {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+      }
+    };
+
+    const draw = () => {
+      // Smooth the volume values for a more fluid animation
+      smoothedUserVolume.current =
+        smoothedUserVolume.current * 0.9 + userVolume * 0.1;
+      smoothedAgentVolume.current =
+        smoothedAgentVolume.current * 0.9 + volume * 0.1;
+
+      resizeCanvas();
+      const { width, height } = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, width, height);
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      // Draw user speaking visualizer (expanding teal rings)
+      if (smoothedUserVolume.current > 0.005) {
+        const maxRadius = width / 2;
+        const baseRadius = maxRadius * 0.2;
+        const dynamicRadius =
+          maxRadius * 0.8 * Math.min(1, smoothedUserVolume.current * 15);
+
+        for (let i = 1; i <= 3; i++) {
+          ctx.beginPath();
+          const radius = baseRadius + dynamicRadius / i;
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          const opacity = Math.max(0, 1 - radius / maxRadius - 0.2);
+          ctx.strokeStyle = `rgba(100, 255, 218, ${opacity})`;
+          ctx.lineWidth = 1 + (smoothedUserVolume.current * 20) / i;
+          ctx.stroke();
+        }
+      }
+
+      // Draw agent speaking visualizer (pulsating white glow)
+      if (smoothedAgentVolume.current > 0.005) {
+        const maxRadius = width / 2;
+        const radius =
+          maxRadius * 0.4 +
+          maxRadius * 0.5 * Math.min(1, smoothedAgentVolume.current * 10);
+
+        // Create a radial gradient for a soft glow effect
+        const gradient = ctx.createRadialGradient(
+          centerX,
+          centerY,
+          radius * 0.5,
+          centerX,
+          centerY,
+          radius,
+        );
+        gradient.addColorStop(
+          0,
+          `rgba(232, 234, 237, ${Math.min(
+            0.5,
+            smoothedAgentVolume.current * 5,
+          )})`,
+        );
+        gradient.addColorStop(1, 'rgba(232, 234, 237, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      animationFrameId.current = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, [userVolume, volume]);
+
   const handleEndCall = () => {
     disconnect();
     hideVoiceCall();
@@ -124,13 +217,6 @@ const VoiceCall = () => {
 
   const handleCameraToggle = () => {
     setIsCameraOn(!isCameraOn);
-  };
-
-  const orbStyle = {
-    boxShadow: `0 0 ${userVolume * 70}px rgba(100, 255, 218, ${Math.min(
-      0.6,
-      userVolume * 15,
-    )})`,
   };
 
   // Define thresholds for speaking state
@@ -157,7 +243,7 @@ const VoiceCall = () => {
 
       <main className="voice-call-main">
         <div className="voice-call-orb-container">
-          <div className="voice-call-orb" style={orbStyle}>
+          <div className="voice-call-orb">
             {isCameraOn && (
               <video
                 ref={videoRef}
@@ -171,6 +257,7 @@ const VoiceCall = () => {
               className="voice-call-orb-effect standby-effect"
               style={{ opacity: isIdle ? 1 : 0 }}
             />
+            <canvas ref={visualizerRef} className="voice-call-visualizer" />
             <div
               className="voice-call-orb-effect user-smoke-effect"
               style={{ opacity: Math.min(1, userVolume * 20) }}
