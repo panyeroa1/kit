@@ -1065,11 +1065,14 @@ form button:first-of-type {
 
 .sidebar-content {
   padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
   overflow-y: auto;
   flex-grow: 1;
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .sidebar-section {
@@ -1163,6 +1166,10 @@ form button:first-of-type {
   border: 1px solid var(--border-stroke);
   border-radius: var(--card-border-radius);
   background-color: var(--card-background);
+  margin-bottom: 12px;
+}
+.integration-item:last-child {
+  margin-bottom: 0;
 }
 
 .integration-info {
@@ -1430,4 +1437,15 @@ form button:first-of-type {
 .integration-item .integration-info svg {
   width: 24px;
   height: 24px;
+}
+
+.persona-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
+.persona-actions .gradient-button {
+  width: auto;
+  padding: 10px 20px;
 }

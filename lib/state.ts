@@ -13,6 +13,7 @@ import {
   FunctionResponseScheduling,
   LiveServerToolCall,
 } from '@google/genai';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export const businessAssistantTools: FunctionCall[] = [
   {
@@ -80,17 +81,6 @@ const toolsets: Record<Template, FunctionCall[]> = {
   'personal-assistant': personalAssistantTools,
   'navigation-system': navigationSystemTools,
   'business-assistant': businessAssistantTools,
-};
-
-const systemPrompts: Record<Template, string> = {
-  'customer-support':
-    'You are a helpful and friendly customer support agent. Be conversational and concise.',
-  'personal-assistant':
-    'You are a helpful and friendly personal assistant. Be proactive and efficient.',
-  'navigation-system':
-    'You are a helpful and friendly navigation assistant. Provide clear and accurate directions.',
-  'business-assistant':
-    'You are a professional business assistant. You can manage emails and schedules. Be formal and efficient.',
 };
 
 /**
@@ -171,9 +161,10 @@ interface GoogleIntegrationState {
 
 export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
   (set, get) => ({
-    clientId: '',
-    clientSecret: '',
-    redirectUri: '',
+    clientId:
+      '73350400049-umtdnv3ju4ci46eqkver143hh4er63ap.apps.googleusercontent.com',
+    clientSecret: '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',
+    redirectUri: 'https://app.aitekchat.com/oauth2/callback/google',
     isConfigured: false,
     isValidated: false,
     errors: {},
@@ -239,6 +230,7 @@ interface SupabaseIntegrationState {
     supabaseUrl?: string;
     supabaseAnonKey?: string;
   };
+  supabase: SupabaseClient | null;
   setSupabaseUrl: (url: string) => void;
   setSupabaseAnonKey: (key: string) => void;
   validateCredentials: () => boolean;
@@ -247,11 +239,13 @@ interface SupabaseIntegrationState {
 
 export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
   (set, get) => ({
-    supabaseUrl: '',
-    supabaseAnonKey: '',
+    supabaseUrl: 'https://iydbsuzawosivjjqgwcn.supabase.co',
+    supabaseAnonKey:
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZGJzdXphd29zaXZqanFnd2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NzQ0NzcsImV4cCI6MjA3NTE1MDQ3N30.PNFW2DNJOOLi-sCCLX9vcBE7CTBrjuQJLyBF2z6yj3o',
     isConfigured: false,
     isValidated: false,
     errors: {},
+    supabase: null,
     setSupabaseUrl: url =>
       set({ supabaseUrl: url, isValidated: false, errors: {} }),
     setSupabaseAnonKey: key =>
@@ -268,7 +262,8 @@ export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
         !supabaseUrl.startsWith('https://') ||
         !supabaseUrl.endsWith('.supabase.co')
       ) {
-        newErrors.supabaseUrl = 'URL must start with https:// and end with .supabase.co';
+        newErrors.supabaseUrl =
+          'URL must start with https:// and end with .supabase.co';
         isValid = false;
       }
 
@@ -280,20 +275,20 @@ export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
         isValid = false;
       }
 
-
       set({ errors: newErrors, isValidated: isValid });
       return isValid;
     },
     saveCredentials: () => {
       const isValid = get().validateCredentials();
       if (isValid) {
-        console.log('Saving Supabase credentials (simulated)...');
-        set({ isConfigured: true });
+        console.log('Saving Supabase credentials and creating client...');
+        const { supabaseUrl, supabaseAnonKey } = get();
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+        set({ isConfigured: true, supabase: supabaseClient });
       }
     },
   }),
 );
-
 
 /**
  * Tools
@@ -319,7 +314,6 @@ export const useTools = create<{
   template: 'customer-support',
   setTemplate: (template: Template) => {
     set({ tools: toolsets[template], template });
-    useUserSettings.getState().setRolesAndDescription(systemPrompts[template]);
   },
   toggleTool: (toolName: string) =>
     set(state => ({

@@ -14,7 +14,7 @@ import {
 import c from 'classnames';
 import { AVAILABLE_VOICES_MAP } from '@/lib/constants';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ToolEditorModal from './ToolEditorModal';
 
 export default function Sidebar() {
@@ -40,12 +40,34 @@ export default function Sidebar() {
   const [editingTool, setEditingTool] = useState<FunctionCall | null>(null);
   const [activeTab, setActiveTab] = useState('server');
 
+  // Local state for persona editing
+  const [localPersonaName, setLocalPersonaName] = useState(personaName);
+  const [localRolesAndDescription, setLocalRolesAndDescription] =
+    useState(rolesAndDescription);
+
+  useEffect(() => {
+    setLocalPersonaName(personaName);
+  }, [personaName]);
+
+  useEffect(() => {
+    setLocalRolesAndDescription(rolesAndDescription);
+  }, [rolesAndDescription]);
+
   const handleSaveTool = (updatedTool: FunctionCall) => {
     if (editingTool) {
       updateTool(editingTool.name, updatedTool);
     }
     setEditingTool(null);
   };
+
+  const handleSavePersona = () => {
+    setPersonaName(localPersonaName);
+    setRolesAndDescription(localRolesAndDescription);
+  };
+
+  const hasPersonaChanges =
+    localPersonaName !== personaName ||
+    localRolesAndDescription !== rolesAndDescription;
 
   return (
     <>
@@ -82,6 +104,7 @@ export default function Sidebar() {
           {activeTab === 'server' && (
             <div
               id="server-settings-panel"
+              className="tab-panel"
               role="tabpanel"
               aria-labelledby="server-settings-tab"
             >
@@ -291,6 +314,7 @@ export default function Sidebar() {
           {activeTab === 'user' && (
             <div
               id="user-settings-panel"
+              className="tab-panel"
               role="tabpanel"
               aria-labelledby="user-settings-tab"
             >
@@ -301,16 +325,18 @@ export default function Sidebar() {
                     Persona Name
                     <input
                       type="text"
-                      value={personaName}
-                      onChange={e => setPersonaName(e.target.value)}
+                      value={localPersonaName}
+                      onChange={e => setLocalPersonaName(e.target.value)}
                       placeholder="Give your assistant a name"
                     />
                   </label>
                   <label>
                     Roles and description
                     <textarea
-                      value={rolesAndDescription}
-                      onChange={e => setRolesAndDescription(e.target.value)}
+                      value={localRolesAndDescription}
+                      onChange={e =>
+                        setLocalRolesAndDescription(e.target.value)
+                      }
                       rows={6}
                       placeholder="Describe the role and personality of the AI..."
                     />
@@ -329,6 +355,15 @@ export default function Sidebar() {
                     </select>
                   </label>
                 </fieldset>
+                <div className="persona-actions">
+                  <button
+                    className="gradient-button"
+                    onClick={handleSavePersona}
+                    disabled={!hasPersonaChanges || connected}
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
 
               <div className="sidebar-section">
