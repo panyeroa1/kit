@@ -352,8 +352,8 @@ interface GoogleIntegrationState {
 export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
   (set, get) => ({
     clientId:
-      '73350400049-umtdnv3ju4ci46eqkver143hh4er63ap.apps.googleusercontent.com',
-    clientSecret: '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',
+      '73350400049-lak1uj65sti1dknrrfh92t43lvti83da.apps.googleusercontent.com',
+    clientSecret: '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',
     redirectUri: 'https://voice.kithai.site',
     isConfigured: true,
     isValidated: false,
