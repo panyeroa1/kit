@@ -21,10 +21,12 @@
 import ControlTray from './components/console/control-tray/ControlTray';
 import ErrorScreen from './components/demo/ErrorScreen';
 import StreamingConsole from './components/demo/streaming-console/StreamingConsole';
+import VoiceCall from './components/demo/VoiceCall';
 
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { LiveAPIProvider } from './contexts/LiveAPIContext';
+import { useUI } from './lib/state';
 
 const API_KEY = process.env.GEMINI_API_KEY as string;
 if (typeof API_KEY !== 'string') {
@@ -38,20 +40,18 @@ if (typeof API_KEY !== 'string') {
  * Manages video streaming state and provides controls for webcam/screen capture.
  */
 function App() {
+  const { isVoiceCallActive } = useUI();
   return (
     <div className="App">
       <LiveAPIProvider apiKey={API_KEY}>
         <ErrorScreen />
+        {isVoiceCallActive && <VoiceCall />}
         <Header />
         <Sidebar />
-        <div className="streaming-console">
+        <div className="main-container">
           <main>
-            <div className="main-app-area">
-              <StreamingConsole />
-
-            </div>
-
-            <ControlTray></ControlTray>
+            <StreamingConsole />
+            <ControlTray />
           </main>
         </div>
       </LiveAPIProvider>

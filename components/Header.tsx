@@ -8,21 +8,18 @@ export default function Header() {
   const { toggleSidebar } = useUI();
 
   return (
-    <header>
-      <div className="header-left">
-        <h1>Native Audio Function Call Sandbox</h1>
-        <p>Copy the app and ask the Code Assistant to add function calls.</p>
-        <p>Build your own function call experiment.</p>
-      </div>
-      <div className="header-right">
-        <button
-          className="settings-button"
-          onClick={toggleSidebar}
-          aria-label="Settings"
-        >
-          <span className="icon">tune</span>
-        </button>
-      </div>
+    <header className="app-header">
+      <button
+        className="icon-button"
+        onClick={toggleSidebar}
+        aria-label="Menu"
+      >
+        <span className="material-symbols-outlined">menu</span>
+      </button>
+      <h1 className="app-title">Kithai AI</h1>
+      <button className="icon-button" aria-label="Recent activity">
+        <span className="material-symbols-outlined">history</span>
+      </button>
     </header>
   );
 }

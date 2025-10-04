@@ -22,28 +22,15 @@ import cn from 'classnames';
 
 import { memo, ReactNode, useEffect, useRef, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
-import { useSettings, useTools, useLogStore, useUserSettings } from '@/lib/state';
-
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
+import { useUI } from '@/lib/state';
 
-export type ControlTrayProps = {
-  children?: ReactNode;
-};
-
-function ControlTray({ children }: ControlTrayProps) {
+function ControlTray() {
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
-  const connectButtonRef = useRef<HTMLButtonElement>(null);
-
+  const [text, setText] = useState('');
+  const { showVoiceCall, isVoiceCallActive } = useUI();
   const { client, connected, connect, disconnect } = useLiveAPIContext();
-
-  useEffect(() => {
-    // FIX: Cannot find name 'connectButton'. Did you mean 'connectButtonRef'?
-    if (!connected && connectButtonRef.current) {
-      // FIX: Cannot find name 'connectButton'. Did you mean 'connectButtonRef'?
-      connectButtonRef.current.focus();
-    }
-  }, [connected]);
 
   useEffect(() => {
     if (!connected) {
@@ -60,7 +47,8 @@ function ControlTray({ children }: ControlTrayProps) {
         },
       ]);
     };
-    if (connected && !muted && audioRecorder) {
+    // Don't record audio from here if the voice call is active
+    if (connected && !isVoiceCallActive && !muted && audioRecorder) {
       audioRecorder.on('data', onData);
       audioRecorder.start();
     } else {
@@ -69,103 +57,54 @@ function ControlTray({ children }: ControlTrayProps) {
     return () => {
       audioRecorder.off('data', onData);
     };
-  }, [connected, client, muted, audioRecorder]);
+  }, [connected, client, muted, audioRecorder, isVoiceCallActive]);
 
-  const handleMicClick = () => {
+  // This button now shows the voice call UI instead of connecting directly
+  const handleShowVoiceCall = () => {
+    showVoiceCall();
+  };
+
+  const handleMuteToggle = () => {
     if (connected) {
       setMuted(!muted);
-    } else {
-      connect();
     }
   };
 
-  const handleExportLogs = () => {
-    const { model } = useSettings.getState();
-    const { rolesAndDescription } = useUserSettings.getState();
-    const { tools } = useTools.getState();
-    const { turns } = useLogStore.getState();
-
-    const logData = {
-      configuration: {
-        model,
-        systemPrompt: rolesAndDescription,
-      },
-      tools,
-      conversation: turns.map(turn => ({
-        ...turn,
-        // Convert Date object to ISO string for JSON serialization
-        timestamp: turn.timestamp.toISOString(),
-      })),
-    };
-
-    const jsonString = JSON.stringify(logData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    a.href = url;
-    a.download = `live-api-logs-${timestamp}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const micButtonTitle = connected
-    ? muted
-      ? 'Unmute microphone'
-      : 'Mute microphone'
-    : 'Connect and start microphone';
-
-  const connectButtonTitle = connected ? 'Stop streaming' : 'Start streaming';
-
   return (
     <section className="control-tray">
-      <nav className={cn('actions-nav')}>
+      <div className="input-bar-wrapper">
         <button
-          className={cn('action-button mic-button')}
-          onClick={handleMicClick}
-          title={micButtonTitle}
+          className="icon-button"
+          aria-label="Attach image"
+          disabled={isVoiceCallActive}
         >
-          {!muted ? (
-            <span className="material-symbols-outlined filled">mic</span>
-          ) : (
-            <span className="material-symbols-outlined filled">mic_off</span>
-          )}
+          <span className="material-symbols-outlined">add_photo_alternate</span>
+        </button>
+        <input
+          type="text"
+          placeholder="Ask anything"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          disabled={connected} // connected is true during voice call
+        />
+        <button
+          className="icon-button"
+          onClick={handleMuteToggle}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+          disabled={!connected || isVoiceCallActive}
+        >
+          <span className="material-symbols-outlined filled">
+            {muted ? 'mic_off' : 'mic'}
+          </span>
         </button>
         <button
-          className={cn('action-button')}
-          onClick={handleExportLogs}
-          aria-label="Export Logs"
-          title="Export session logs"
+          className="primary-action-button"
+          onClick={handleShowVoiceCall}
+          aria-label={'Start voice conversation'}
+          disabled={connected}
         >
-          <span className="icon">download</span>
+          <span className="material-symbols-outlined filled">play_arrow</span>
         </button>
-        <button
-          className={cn('action-button')}
-          onClick={useLogStore.getState().clearTurns}
-          aria-label="Reset Chat"
-          title="Reset session logs"
-        >
-          <span className="icon">refresh</span>
-        </button>
-        {children}
-      </nav>
-
-      <div className={cn('connection-container', { connected })}>
-        <div className="connection-button-container">
-          <button
-            ref={connectButtonRef}
-            className={cn('action-button connect-toggle', { connected })}
-            onClick={connected ? disconnect : connect}
-            title={connectButtonTitle}
-          >
-            <span className="material-symbols-outlined filled">
-              {connected ? 'pause' : 'play_arrow'}
-            </span>
-          </button>
-        </div>
-        <span className="text-indicator">Streaming</span>
       </div>
     </section>
   );

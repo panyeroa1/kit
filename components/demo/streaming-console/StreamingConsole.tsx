@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { useEffect, useRef, useState } from 'react';
-import PopUp from '../popup/PopUp';
 import WelcomeScreen from '../welcome-screen/WelcomeScreen';
 // FIX: Import LiveServerContent to correctly type the content handler.
 import { LiveConnectConfig, Modality, LiveServerContent } from '@google/genai';
@@ -55,29 +54,11 @@ const renderContent = (text: string) => {
 export default function StreamingConsole() {
   const { client, setConfig } = useLiveAPIContext();
   const { rolesAndDescription, voice } = useUserSettings();
-  const { tools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showPopUp, setShowPopUp] = useState(true);
-
-  const handleClosePopUp = () => {
-    setShowPopUp(false);
-  };
 
   // Set the configuration for the Live API
   useEffect(() => {
-    const enabledTools = tools
-      .filter(tool => tool.isEnabled)
-      .map(tool => ({
-        functionDeclarations: [
-          {
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters,
-          },
-        ],
-      }));
-
     // Using `any` for config to accommodate `speechConfig`, which is not in the
     // current TS definitions but is used in the working reference example.
     const config: any = {
@@ -98,11 +79,11 @@ export default function StreamingConsole() {
           },
         ],
       },
-      tools: enabledTools,
+      tools: [{ googleSearch: {} }],
     };
 
     setConfig(config);
-  }, [setConfig, rolesAndDescription, tools, voice]);
+  }, [setConfig, rolesAndDescription, voice]);
 
   useEffect(() => {
     const { addTurn, updateLastTurn } = useLogStore.getState();
@@ -192,7 +173,6 @@ export default function StreamingConsole() {
 
   return (
     <div className="transcription-container">
-      {showPopUp && <PopUp onClose={handleClosePopUp} />}
       {turns.length === 0 ? (
         <WelcomeScreen />
       ) : (
