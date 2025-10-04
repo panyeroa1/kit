@@ -24,7 +24,7 @@ import { LiveConnectConfig, Modality, LiveServerToolCall } from '@google/genai';
 import { AudioStreamer } from '../../lib/audio-streamer';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
-import { useLogStore, useSettings, useUserSettings } from '@/lib/state';
+import { useLogStore, useSettings, useUserSettings, useWhatsAppIntegrationStore } from '@/lib/state';
 
 export type UseLiveApiResults = {
   client: GenAILiveClient;
@@ -161,6 +161,21 @@ async function handleSaveMemory(args: any) {
   return 'Information noted.';
 }
 
+async function handleSendWhatsAppMessage(args: any) {
+  const { isUserConnected, sendMessage } =
+    useWhatsAppIntegrationStore.getState();
+
+  if (!isUserConnected) {
+    return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
+  }
+
+  const { recipient_phone_number, message_body } = args;
+  if (!recipient_phone_number || !message_body) {
+    return 'Missing required parameters for sending a WhatsApp message. I need a recipient phone number and a message body.';
+  }
+
+  return await sendMessage(recipient_phone_number, message_body);
+}
 
 export function useLiveApi({
   apiKey,
@@ -257,6 +272,9 @@ export function useLiveApi({
             break;
           case 'save_memory':
             resultPromise = handleSaveMemory(fc.args);
+            break;
+          case 'send_whatsapp_message':
+            resultPromise = handleSendWhatsAppMessage(fc.args);
             break;
           default:
             resultPromise = Promise.resolve('ok'); // Default for other tools

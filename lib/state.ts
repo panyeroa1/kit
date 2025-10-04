@@ -69,6 +69,27 @@ export const businessAssistantTools: FunctionCall[] = [
     isEnabled: true,
     scheduling: FunctionResponseScheduling.INTERRUPT,
   },
+  {
+    name: 'send_whatsapp_message',
+    description: 'Sends a WhatsApp message to a specified phone number.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        recipient_phone_number: {
+          type: 'STRING',
+          description:
+            'The phone number of the recipient, including the country code.',
+        },
+        message_body: {
+          type: 'STRING',
+          description: 'The content of the message to send.',
+        },
+      },
+      required: ['recipient_phone_number', 'message_body'],
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
 ];
 
 export type Template =
@@ -499,6 +520,10 @@ interface WhatsAppIntegrationState {
   setAccessToken: (token: string) => void;
   validateCredentials: () => boolean;
   saveCredentials: () => void;
+  sendMessage: (
+    recipientPhoneNumber: string,
+    message: string,
+  ) => Promise<string>;
   // User-specific settings
   isUserConnected: boolean;
   userPhoneNumber: string | null;
@@ -547,6 +572,48 @@ export const useWhatsAppIntegrationStore = create(
         if (isValid) {
           console.log('Saving WhatsApp credentials (simulated)...');
           set({ isConfigured: true });
+        }
+      },
+      sendMessage: async (recipientPhoneNumber: string, message: string) => {
+        const { isConfigured, phoneNumberId, accessToken, isUserConnected } =
+          get();
+
+        if (!isConfigured) {
+          return 'WhatsApp is not configured by the admin.';
+        }
+        if (!isUserConnected) {
+          return 'User has not connected their WhatsApp account.';
+        }
+
+        try {
+          const response = await fetch(
+            `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                to: recipientPhoneNumber,
+                type: 'text',
+                text: { body: message },
+              }),
+            },
+          );
+
+          const data = await response.json();
+          if (!response.ok) {
+            console.error('WhatsApp API Error:', data);
+            return data.error?.message || 'Failed to send WhatsApp message.';
+          }
+          return 'WhatsApp message sent successfully.';
+        } catch (error) {
+          console.error('Error sending WhatsApp message:', error);
+          return `An error occurred while sending the message: ${
+            (error as Error).message
+          }`;
         }
       },
       // User-specific settings
