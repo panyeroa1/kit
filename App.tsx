@@ -178,14 +178,18 @@ function App() {
         <ErrorScreen />
         {isVoiceCallActive && <VoiceCall />}
         {isWhatsAppModalOpen && <WhatsAppModal />}
-        <Header />
-        <Sidebar />
-        <div className="main-container">
-          <main>
-            <StreamingConsole />
-            <ControlTray />
-          </main>
-        </div>
+        {!isVoiceCallActive && (
+          <>
+            <Header />
+            <Sidebar />
+            <div className="main-container">
+              <main>
+                <StreamingConsole />
+                <ControlTray />
+              </main>
+            </div>
+          </>
+        )}
         <Snackbar />
       </LiveAPIProvider>
     </div>

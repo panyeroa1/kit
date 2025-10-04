@@ -63,14 +63,14 @@ code {
   --Red-700: #bd3000;
   --card-header: #2e96ff;
   --card-border: #217bfe;
-  --card-background: var(--Neutral-15);
+  --card-background: rgba(35, 39, 41, 0.75);
   --card-border-radius: 8px;
 
   /* New Theme */
-  --sidebar-bg: var(--background);
+  --sidebar-bg: rgba(10, 25, 41, 0.75);
   --input-bg: var(--Neutral-5);
-  --input-bar-bg: #1e1f20;
-  --chip-bg: #1e1f20;
+  --input-bar-bg: rgba(30, 31, 32, 0.75);
+  --chip-bg: rgba(30, 31, 32, 0.75);
   --border-color: #64ffda;
   --button-gradient: linear-gradient(90deg, #32cd32, #adff2f);
   --text-primary: #e8eaed;
@@ -96,9 +96,26 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #000;
   overflow: hidden;
+  background-color: #000;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.6) 0.6px, transparent 1px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.4) 0.4px, transparent 0.8px);
+  background-repeat: repeat;
+  background-position: 100px 100px, 350px 350px;
+  background-size: 300px 300px, 500px 500px;
+  animation: move-stars-global 300s linear infinite;
 }
+
+@keyframes move-stars-global {
+  from {
+    background-position: 100px 100px, 350px 350px;
+  }
+  to {
+    background-position: -200px -200px, -150px -150px;
+  }
+}
+
 
 h1,
 h2,
@@ -490,6 +507,8 @@ button .icon {
   align-items: center;
   gap: 8px;
   background-color: var(--input-bar-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 28px;
   padding: 8px;
   width: 100%;
@@ -666,6 +685,8 @@ button .icon {
 
 .modalShroud .modal {
   background: var(--sidebar-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border-stroke);
   border-radius: 10px;
   padding: 24px;
@@ -871,6 +892,8 @@ form button:first-of-type {
   max-width: 100%;
   height: 100vh;
   background: var(--sidebar-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-left: 1px solid var(--border-stroke);
   z-index: 1000;
   transform: translateX(100%);
@@ -1169,6 +1192,8 @@ form button:first-of-type {
 /* Google OAuth Settings Card */
 .settings-card {
   background-color: var(--card-background);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border-stroke);
   border-radius: var(--card-border-radius);
   padding: 24px;
@@ -1359,11 +1384,42 @@ form button:first-of-type {
 .voice-call-overlay {
   position: fixed;
   inset: 0;
-  background-color: #000;
+  background-color: transparent;
+  background-image:
+    /* Blue/Red Nebula Cloud behind the orb */
+    radial-gradient(ellipse at 50% 55%, hsla(210, 60%, 40%, 0.45) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 55%, hsla(330, 50%, 30%, 0.4) 0%, transparent 40%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   z-index: 999;
   display: flex;
   flex-direction: column;
   color: var(--text-primary);
+  overflow: hidden;
+}
+
+.satellite {
+  position: absolute;
+  top: 10%;
+  animation: move-satellite 150s linear infinite;
+  z-index: 10;
+  color: #aaccde;
+  opacity: 0.7;
+}
+
+.satellite .material-symbols-outlined {
+  font-size: 24px;
+  transform: rotate(-45deg);
+}
+
+@keyframes move-satellite {
+  from {
+    transform: translate(-100px, 0) rotate(20deg);
+  }
+  to {
+    transform: translate(calc(100vw + 100px), 50px) rotate(-20deg);
+  }
 }
 
 .voice-call-header {
@@ -1375,6 +1431,7 @@ form button:first-of-type {
   top: 0;
   left: 0;
   right: 0;
+  z-index: 20;
 }
 
 .voice-call-persona-name {
@@ -1396,8 +1453,8 @@ form button:first-of-type {
 }
 
 .voice-call-orb-container {
-  width: 300px;
-  height: 300px;
+  width: 250px;
+  height: 250px;
   position: relative;
 }
 
@@ -1405,7 +1462,7 @@ form button:first-of-type {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1200px-FullMoon2010.jpg');
+  background-image: url('https://solarsystem.nasa.gov/system/resources/detail_files/815_PIA19952.jpg');
   background-size: cover;
   background-position: center;
   display: flex;
@@ -1413,16 +1470,15 @@ form button:first-of-type {
   align-items: center;
   overflow: hidden;
   position: relative;
+  box-shadow: 0 0 60px 10px rgba(100, 180, 255, 0.4), 0 0 25px 5px rgba(170, 210, 255, 0.3);
 }
 
-.voice-call-visualizer {
+.voice-call-orb::after {
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   border-radius: 50%;
-  pointer-events: none;
+  box-shadow: none;
 }
 
 .voice-call-orb-effect {
@@ -1439,9 +1495,10 @@ form button:first-of-type {
 }
 
 .standby-effect {
-  background: linear-gradient(-45deg, #e3d7c9, #a98c7b, #c46954, #f5f5f5);
+  background: linear-gradient(-45deg, #4a4e69, #22223b, #4a4e69, #9a8c98);
   background-size: 400% 400%;
   animation: standby-swirl 25s ease infinite;
+  opacity: 0.5;
 }
 
 @keyframes standby-swirl {
@@ -1461,49 +1518,94 @@ form button:first-of-type {
   mix-blend-mode: screen;
 }
 
-.user-smoke-effect::before, .user-smoke-effect::after,
-.agent-smoke-effect::before, .agent-smoke-effect::after {
+.user-smoke-effect::before,
+.user-smoke-effect::after,
+.agent-smoke-effect::before,
+.agent-smoke-effect::after {
   content: '';
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  background-size: 200% 200%;
+  background-size: 150% 150%;
   animation: smoke-swirl 20s linear infinite;
   will-change: transform, background-position;
+  filter: blur(10px);
 }
 
-/* User Smoke (Green) */
+/* User Cloud (Teal/Cyan) */
 .user-smoke-effect::before {
-  background-image: radial-gradient(circle at 30% 30%, rgba(100, 255, 218, 0.4), transparent 50%),
-                    radial-gradient(circle at 70% 60%, rgba(46, 204, 113, 0.3), transparent 60%);
+  background-image: radial-gradient(
+      circle at 30% 30%,
+      rgba(100, 255, 218, 0.4),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 70% 60%,
+      rgba(72, 202, 228, 0.3),
+      transparent 70%
+    );
   animation-direction: alternate;
 }
 .user-smoke-effect::after {
-  background-image: radial-gradient(circle at 60% 20%, rgba(100, 255, 218, 0.2), transparent 40%),
-                    radial-gradient(circle at 20% 80%, rgba(46, 204, 113, 0.4), transparent 50%);
+  background-image: radial-gradient(
+      circle at 60% 20%,
+      rgba(100, 255, 218, 0.2),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 20% 80%,
+      rgba(72, 202, 228, 0.4),
+      transparent 60%
+    );
   animation-duration: 25s;
 }
 
-/* Agent Smoke (White/Rumble) */
+/* Agent Cloud (White/Grey) */
 .agent-smoke-effect::before {
-  background-image: radial-gradient(circle at 25% 75%, rgba(255, 255, 255, 0.3), transparent 50%),
-                    radial-gradient(circle at 75% 25%, rgba(224, 224, 224, 0.25), transparent 60%);
+  background-image: radial-gradient(
+      circle at 25% 75%,
+      rgba(255, 255, 255, 0.3),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 75% 25%,
+      rgba(224, 224, 224, 0.25),
+      transparent 70%
+    );
   animation-duration: 30s;
 }
 .agent-smoke-effect::after {
-   background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15), transparent 40%),
-                    radial-gradient(circle at 80% 80%, rgba(200, 200, 200, 0.3), transparent 50%);
+  background-image: radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.15),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 80%,
+      rgba(200, 200, 200, 0.3),
+      transparent 60%
+    );
   animation-duration: 22s;
   animation-direction: alternate-reverse;
 }
 
 @keyframes smoke-swirl {
-  0% { transform: rotate(0deg) scale(1.1); background-position: 0% 50%; }
-  50% { transform: rotate(180deg) scale(1.0); background-position: 100% 50%; }
-  100% { transform: rotate(360deg) scale(1.1); background-position: 0% 50%; }
+  0% {
+    transform: rotate(0deg) scale(1);
+    background-position: 0% 50%;
+  }
+  50% {
+    transform: rotate(180deg) scale(0.9);
+    background-position: 100% 50%;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    background-position: 0% 50%;
+  }
 }
-
 
 .voice-call-video-preview {
   width: 100%;
@@ -1511,7 +1613,6 @@ form button:first-of-type {
   object-fit: cover;
   transform: scaleX(-1); /* Mirror view */
 }
-
 
 .voice-call-footer {
   display: flex;
@@ -1523,6 +1624,7 @@ form button:first-of-type {
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 20;
 }
 
 .voice-call-button {
@@ -1549,7 +1651,6 @@ form button:first-of-type {
   background-color: var(--Neutral-5);
   color: var(--text-secondary);
 }
-
 
 .voice-call-button.end-call {
   background-color: var(--Red-600);
@@ -1688,4 +1789,25 @@ form button:first-of-type {
 }
 .whatsapp-modal-actions .cancel-button:hover {
   background-color: var(--Neutral-50);
+}
+
+.chip {
+  background-color: var(--chip-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-primary);
+  border: 1px solid #3c4043;
+  border-radius: 24px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.chip:hover {
+  background-color: #3c4043;
 }
