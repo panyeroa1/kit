@@ -19,7 +19,7 @@ import { useState, useEffect } from 'react';
 import ToolEditorModal from './ToolEditorModal';
 
 export default function Sidebar() {
-  const { isSidebarOpen, toggleSidebar } = useUI();
+  const { isSidebarOpen, toggleSidebar, showWhatsAppModal } = useUI();
   const { tools, toggleTool, addTool, removeTool, updateTool } = useTools();
   const { connected } = useLiveAPIContext();
   const {
@@ -418,7 +418,10 @@ export default function Sidebar() {
                     </div>
                     {isGmailConnected ? (
                       <div className="integration-connected">
-                        <span>{userEmail}</span>
+                        <div className="status-indicator active">
+                          <span className="status-dot"></span>
+                          Active
+                        </div>
                         <button
                           onClick={disconnectGmail}
                           className="disconnect-button"
@@ -463,6 +466,53 @@ export default function Sidebar() {
                 ) : (
                   <div className="integration-not-configured">
                     <p>Google integration not yet configured by admin.</p>
+                  </div>
+                )}
+                 {whatsAppIntegration.isConfigured ? (
+                  <div className="integration-item">
+                    <div className="integration-info">
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          clipRule="evenodd"
+                          d="M12 2C6.477 2 2 6.477 2 12C2 13.872 2.508 15.634 3.388 17.165L2.343 20.657C2.213 21.107 2.493 21.557 2.943 21.687C3.126 21.739 3.32 21.747 3.507 21.706L7.086 20.701C8.552 21.492 10.219 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2ZM12 4C16.418 4 20 7.582 20 12C20 16.418 16.418 20 12 20C10.45 20 8.995 19.605 7.744 18.921L7.202 18.636L4.343 19.343L5.05 16.484L4.765 15.942C4.081 14.691 3.686 13.235 3.686 11.686C3.686 7.582 7.582 4 12 4ZM9.255 7.357C9.079 7.357 8.847 7.41 8.653 7.593C8.46 7.776 8.001 8.212 8.001 9.118C8.001 10.024 8.666 10.875 8.78 11.029C8.894 11.183 10.233 13.433 12.445 14.34C14.218 15.06 14.677 14.863 15.015 14.808C15.353 14.752 16.294 14.202 16.47 13.626C16.645 13.05 16.645 12.576 16.588 12.494C16.531 12.412 16.355 12.356 16.124 12.241C15.892 12.126 14.689 11.536 14.471 11.454C14.254 11.372 14.09 11.315 13.926 11.609C13.763 11.903 13.246 12.494 13.082 12.677C12.919 12.86 12.755 12.889 12.524 12.774C12.292 12.659 11.396 12.336 10.315 11.385C9.444 10.627 8.881 9.702 8.726 9.436C8.571 9.17 8.686 9.043 8.811 8.928C8.921 8.827 9.064 8.644 9.208 8.489C9.351 8.334 9.395 8.247 9.482 8.093C9.57 7.939 9.526 7.808 9.469 7.693C9.412 7.578 9.255 7.357 9.255 7.357Z"
+                          fill="#25D366"
+                        ></path>
+                      </svg>
+                      <strong>WhatsApp</strong>
+                    </div>
+                    {whatsAppIntegration.isUserConnected ? (
+                      <div className="integration-connected">
+                        <div className="status-indicator active">
+                          <span className="status-dot"></span>
+                          Active
+                        </div>
+                        <button
+                          onClick={whatsAppIntegration.disconnectUser}
+                          className="disconnect-button"
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={showWhatsAppModal}
+                        className="connect-button whatsapp-connect"
+                      >
+                        Connect WhatsApp
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="integration-not-configured">
+                    <p>WhatsApp integration not yet configured by admin.</p>
                   </div>
                 )}
               </div>

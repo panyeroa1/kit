@@ -29,6 +29,7 @@ import Sidebar from './components/Sidebar';
 import { LiveAPIProvider } from './contexts/LiveAPIContext';
 import { useUI, useUserSettings, useGoogleIntegrationStore } from './lib/state';
 import Snackbar from './components/Snackbar';
+import WhatsAppModal from './components/WhatsAppModal';
 
 // Fix: Use process.env.API_KEY per coding guidelines.
 const API_KEY = process.env.API_KEY as string;
@@ -43,7 +44,7 @@ if (typeof API_KEY !== 'string') {
  * Manages video streaming state and provides controls for webcam/screen capture.
  */
 function App() {
-  const { isVoiceCallActive } = useUI();
+  const { isVoiceCallActive, isWhatsAppModalOpen } = useUI();
 
   // Listener for the main window to receive auth confirmation from the popup.
   useEffect(() => {
@@ -176,6 +177,7 @@ function App() {
       <LiveAPIProvider apiKey={API_KEY}>
         <ErrorScreen />
         {isVoiceCallActive && <VoiceCall />}
+        {isWhatsAppModalOpen && <WhatsAppModal />}
         <Header />
         <Sidebar />
         <div className="main-container">

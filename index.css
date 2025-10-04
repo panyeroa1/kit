@@ -52,6 +52,8 @@ code {
   --Neutral-90: #e1e2e3;
   --Green-500: #64ffda;
   --Green-700: #025022;
+  --Whatsapp-Green: #25d366;
+  --Whatsapp-Green-Hover: #128c7e;
   --Blue-400: #80c1ff;
   --Blue-500: #1f94ff;
   --Blue-800: #0f3557;
@@ -1284,6 +1286,23 @@ form button:first-of-type {
   justify-content: center;
 }
 
+.status-indicator.active {
+  color: var(--Green-500);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--Green-500);
+  box-shadow: 0 0 5px var(--Green-500);
+}
+
 .integration-not-configured {
   font-size: 14px;
   color: var(--text-secondary);
@@ -1306,6 +1325,14 @@ form button:first-of-type {
 .connect-button.google-connect:hover {
   background-color: #f8f9fa;
   border-color: #c6c9ce;
+}
+
+.connect-button.whatsapp-connect {
+  background-color: var(--Whatsapp-Green);
+  color: white;
+}
+.connect-button.whatsapp-connect:hover {
+  background-color: var(--Whatsapp-Green-Hover);
 }
 
 .connect-button.google-connect svg {
@@ -1557,4 +1584,108 @@ form button:first-of-type {
   visibility: visible;
   opacity: 1;
   bottom: 120px;
+}
+
+/* WhatsApp Modal */
+.whatsapp-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  text-align: center;
+}
+
+.whatsapp-modal-content p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.whatsapp-qr-code {
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.whatsapp-qr-code svg {
+  display: block;
+}
+
+.whatsapp-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.whatsapp-divider::before,
+.whatsapp-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-stroke);
+}
+.whatsapp-divider:not(:empty)::before {
+  margin-right: .5em;
+}
+.whatsapp-divider:not(:empty)::after {
+  margin-left: .5em;
+}
+
+.whatsapp-manual-entry label {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: block;
+  text-align: left;
+}
+
+.whatsapp-manual-entry input {
+  width: 100%;
+  border: 1px solid var(--border-stroke);
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 14px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.whatsapp-manual-entry input:focus {
+  outline: none;
+  border-color: var(--Whatsapp-Green);
+  box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.2);
+}
+
+.whatsapp-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.whatsapp-modal-actions .connect-button {
+  background-color: var(--Whatsapp-Green);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.whatsapp-modal-actions .connect-button:hover:not(:disabled) {
+  background-color: var(--Whatsapp-Green-Hover);
+}
+.whatsapp-modal-actions .connect-button:disabled {
+  background-color: var(--text-secondary);
+  cursor: not-allowed;
+}
+.whatsapp-modal-actions .cancel-button {
+  background-color: var(--Neutral-30);
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+.whatsapp-modal-actions .cancel-button:hover {
+  background-color: var(--Neutral-50);
 }

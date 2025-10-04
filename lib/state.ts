@@ -104,6 +104,9 @@ export const useUI = create<{
   isVoiceCallActive: boolean;
   showVoiceCall: () => void;
   hideVoiceCall: () => void;
+  isWhatsAppModalOpen: boolean;
+  showWhatsAppModal: () => void;
+  hideWhatsAppModal: () => void;
   snackbarMessage: string | null;
   showSnackbar: (message: string | null) => void;
 }>(set => ({
@@ -112,6 +115,9 @@ export const useUI = create<{
   isVoiceCallActive: false,
   showVoiceCall: () => set({ isVoiceCallActive: true }),
   hideVoiceCall: () => set({ isVoiceCallActive: false }),
+  isWhatsAppModalOpen: false,
+  showWhatsAppModal: () => set({ isWhatsAppModalOpen: true }),
+  hideWhatsAppModal: () => set({ isWhatsAppModalOpen: false }),
   snackbarMessage: null,
   showSnackbar: (message: string | null) => set({ snackbarMessage: message }),
 }));
@@ -477,6 +483,7 @@ export const useGoogleIntegrationStore = create(persist<GoogleIntegrationState>(
  * WhatsApp Integration Admin Settings
  */
 interface WhatsAppIntegrationState {
+  // Admin server settings
   phoneNumberId: string;
   wabaId: string; // WhatsApp Business Account ID
   accessToken: string;
@@ -492,15 +499,21 @@ interface WhatsAppIntegrationState {
   setAccessToken: (token: string) => void;
   validateCredentials: () => boolean;
   saveCredentials: () => void;
+  // User-specific settings
+  isUserConnected: boolean;
+  userPhoneNumber: string | null;
+  connectUser: (phoneNumber: string) => void;
+  disconnectUser: () => void;
 }
 
 export const useWhatsAppIntegrationStore = create(
   persist<WhatsAppIntegrationState>(
     (set, get) => ({
-      phoneNumberId: '',
-      wabaId: '',
-      accessToken: '',
-      isConfigured: false,
+      // Admin server settings
+      phoneNumberId: '169412612933088',
+      wabaId: '235412396315733',
+      accessToken: 'EAANrPCBVeQgBPvZBX0XDSpqf4xDQ2mZBAviSZBJuDg1sI2zPSpA3lvkCUXynAUXuYmqbNXjsLlPA8ZBCUl2mqN4KsZCUlh11EIZAZAOksyDjbJTP2UYxWVaNZCUo8BAbUpZBfqNWr05S0HBVZAE79LVIlRnUx9QXmIY5cPmTO7yRRtlYH7FJxTT13oa81qwg9Clb3RnBZCaKQC0yeeWZAHmnsrUABogZD',
+      isConfigured: true,
       isValidated: false,
       errors: {},
       setPhoneNumberId: id =>
@@ -536,12 +549,60 @@ export const useWhatsAppIntegrationStore = create(
           set({ isConfigured: true });
         }
       },
+      // User-specific settings
+      isUserConnected: false,
+      userPhoneNumber: null,
+      connectUser: (phoneNumber: string) => {
+        // In a real app, you'd have an API call here to verify and connect.
+        // For now, we'll just update the state.
+        set({ isUserConnected: true, userPhoneNumber: phoneNumber });
+        const { userEmail } = useUserSettings.getState();
+        if (userEmail) {
+          // Persist connection to Supabase
+          const { supabase } = useSupabaseIntegrationStore.getState();
+          supabase
+            .from('user_settings')
+            .upsert({
+              user_email: userEmail,
+              whatsapp_phone_number: phoneNumber,
+              is_whatsapp_connected: true,
+            })
+            .then(({ error }) => {
+              if (error) console.error('Error saving WhatsApp connection:', error);
+            });
+        }
+      },
+      disconnectUser: () => {
+        set({ isUserConnected: false, userPhoneNumber: null });
+        const { userEmail } = useUserSettings.getState();
+        if (userEmail) {
+          // Update Supabase
+          const { supabase } = useSupabaseIntegrationStore.getState();
+          supabase
+            .from('user_settings')
+            .upsert({
+              user_email: userEmail,
+              is_whatsapp_connected: false,
+            })
+            .then(({ error }) => {
+              if (error) console.error('Error updating WhatsApp connection:', error);
+            });
+        }
+      },
     }),
     {
       name: 'whatsapp-integration-storage',
+      // Only persist admin settings, not user connection status
+      partialize: (state) => ({
+        phoneNumberId: state.phoneNumberId,
+        wabaId: state.wabaId,
+        accessToken: state.accessToken,
+        isConfigured: state.isConfigured,
+      }),
     },
   ),
 );
+
 
 /**
  * Tools
