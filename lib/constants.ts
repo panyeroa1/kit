@@ -24,6 +24,20 @@
 export const DEFAULT_LIVE_API_MODEL =
   'gemini-2.5-flash-native-audio-preview-09-2025';
 
-export const DEFAULT_VOICE = 'Zephyr';
+export const DEFAULT_VOICE = 'Aoede';
 
-export const AVAILABLE_VOICES = ['Zephyr', 'Puck', 'Charon', 'Luna', 'Nova', 'Kore', 'Fenrir',	'Leda', 'Orus','Aoede','Callirrhoe','Autonoe','Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome','Algenib','Rasalgethi','Laomedeia','Achernar','Alnilam','Schedar','Gacrux','Pulcherrima','Achird',	'Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat'];
+export const AVAILABLE_VOICES_MAP: { name: string; value: string }[] = [
+  { name: 'Beatrice', value: 'Aoede' },
+  { name: 'Jose Rizal', value: 'Zephyr' },
+  { name: 'Andres Bonifacio', value: 'Puck' },
+  { name: 'Emilio Aguinaldo', value: 'Charon' },
+  { name: 'Apolinario Mabini', value: 'Luna' },
+  { name: 'Marcelo H. del Pilar', value: 'Nova' },
+  { name: 'Melchora Aquino', value: 'Kore' },
+  { name: 'Gabriela Silang', value: 'Fenrir' },
+  { name: 'Lapu-Lapu', value: 'Leda' },
+  { name: 'Antonio Luna', value: 'Orus' },
+  { name: 'Gregorio del Pilar', value: 'Callirrhoe' },
+  { name: 'Sultan Kudarat', value: 'Autonoe' },
+  { name: 'Juan Luna', value: 'Enceladus' },
+];

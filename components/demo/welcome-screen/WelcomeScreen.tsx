@@ -35,6 +35,15 @@ const welcomeContent: Record<Template, { title: string; description: string; pro
       "What's the traffic like on the way to the airport?",
     ],
   },
+  'business-assistant': {
+    title: 'Business Assistant',
+    description: 'Connect your Gmail to send and read emails on your behalf.',
+    prompts: [
+      'Read my last 3 unread emails.',
+      'Send an email to john@example.com about our meeting.',
+      'What are my latest emails from Jane?',
+    ],
+  },
 };
 
 const WelcomeScreen: React.FC = () => {
@@ -50,6 +59,7 @@ const WelcomeScreen: React.FC = () => {
               <option value="customer-support">Customer Support</option>
               <option value="personal-assistant">Personal Assistant</option>
               <option value="navigation-system">Navigation System</option>
+              <option value="business-assistant">Business Assistant</option>
             </select>
             <span className="icon">arrow_drop_down</span>
           </div>

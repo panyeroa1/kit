@@ -22,7 +22,7 @@ import cn from 'classnames';
 
 import { memo, ReactNode, useEffect, useRef, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
-import { useSettings, useTools, useLogStore } from '@/lib/state';
+import { useSettings, useTools, useLogStore, useUserSettings } from '@/lib/state';
 
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 
@@ -80,14 +80,15 @@ function ControlTray({ children }: ControlTrayProps) {
   };
 
   const handleExportLogs = () => {
-    const { systemPrompt, model } = useSettings.getState();
+    const { model } = useSettings.getState();
+    const { rolesAndDescription } = useUserSettings.getState();
     const { tools } = useTools.getState();
     const { turns } = useLogStore.getState();
 
     const logData = {
       configuration: {
         model,
-        systemPrompt,
+        systemPrompt: rolesAndDescription,
       },
       tools,
       conversation: turns.map(turn => ({

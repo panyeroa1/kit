@@ -69,7 +69,11 @@ export interface LiveClientEventTypes {
   outputTranscription: (text: string, isFinal: boolean) => void;
 }
 
-export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
+// FIX: Refactored to use composition over inheritance for EventEmitter.
+export class GenAILiveClient {
+  private emitter = new EventEmitter<LiveClientEventTypes>();
+  public on = this.emitter.on.bind(this.emitter);
+  public off = this.emitter.off.bind(this.emitter);
   public readonly model: string = DEFAULT_LIVE_API_MODEL;
 
   protected readonly client: GoogleGenAI;
@@ -86,7 +90,6 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
    * @param model - Optional model name to override the default model
    */
   constructor(apiKey: string, model?: string) {
-    super();
     if (model) this.model = model;
 
     this.client = new GoogleGenAI({
@@ -142,7 +145,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   public send(parts: Part | Part[], turnComplete: boolean = true) {
     if (this._status !== 'connected' || !this.session) {
-      this.emit('error', new ErrorEvent('Client is not connected'));
+      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
     this.session.sendClientContent({ turns: parts, turnComplete });
@@ -151,7 +155,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   public sendRealtimeInput(chunks: Array<{ mimeType: string; data: string }>) {
     if (this._status !== 'connected' || !this.session) {
-      this.emit('error', new ErrorEvent('Client is not connected'));
+      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
     chunks.forEach(chunk => {
@@ -176,7 +181,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   public sendToolResponse(toolResponse: LiveClientToolResponse) {
     if (this._status !== 'connected' || !this.session) {
-      this.emit('error', new ErrorEvent('Client is not connected'));
+      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
     if (
@@ -193,17 +199,20 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   protected onMessage(message: LiveServerMessage) {
     if (message.setupComplete) {
-      this.emit('setupcomplete');
+      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+      this.emitter.emit('setupcomplete');
       return;
     }
     if (message.toolCall) {
       this.log('server.toolCall', message);
-      this.emit('toolcall', message.toolCall);
+      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+      this.emitter.emit('toolcall', message.toolCall);
       return;
     }
     if (message.toolCallCancellation) {
       this.log('receive.toolCallCancellation', message);
-      this.emit('toolcallcancellation', message.toolCallCancellation);
+      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+      this.emitter.emit('toolcallcancellation', message.toolCallCancellation);
       return;
     }
 
@@ -211,12 +220,14 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       const { serverContent } = message;
       if (serverContent.interrupted) {
         this.log('receive.serverContent', 'interrupted');
-        this.emit('interrupted');
+        // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+        this.emitter.emit('interrupted');
         return;
       }
 
       if (serverContent.inputTranscription) {
-        this.emit(
+        // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+        this.emitter.emit(
           'inputTranscription',
           serverContent.inputTranscription.text,
           // FIX: Property 'isFinal' does not exist on type 'Transcription'.
@@ -229,7 +240,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       }
 
       if (serverContent.outputTranscription) {
-        this.emit(
+        // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+        this.emitter.emit(
           'outputTranscription',
           serverContent.outputTranscription.text,
           // FIX: Property 'isFinal' does not exist on type 'Transcription'.
@@ -253,21 +265,24 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
         base64s.forEach(b64 => {
           if (b64) {
             const data = base64ToArrayBuffer(b64);
-            this.emit('audio', data);
+            // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+            this.emitter.emit('audio', data);
             this.log(`server.audio`, `buffer (${data.byteLength})`);
           }
         });
 
         if (otherParts.length > 0) {
           const content: LiveServerContent = { modelTurn: { parts: otherParts } };
-          this.emit('content', content);
+          // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+          this.emitter.emit('content', content);
           this.log(`server.content`, message);
         }
       }
 
       if (serverContent.turnComplete) {
         this.log('server.send', 'turnComplete');
-        this.emit('turncomplete');
+        // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+        this.emitter.emit('turncomplete');
       }
     }
   }
@@ -278,12 +293,14 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
     const message = `Could not connect to GenAI Live: ${e.message}`;
     this.log(`server.${e.type}`, message);
-    this.emit('error', e);
+    // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+    this.emitter.emit('error', e);
   }
 
   protected onOpen() {
     this._status = 'connected';
-    this.emit('open');
+    // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+    this.emitter.emit('open');
   }
 
   protected onClose(e: CloseEvent) {
@@ -301,7 +318,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       `server.${e.type}`,
       `disconnected ${reason ? `with reason: ${reason}` : ``}`
     );
-    this.emit('close', e);
+    // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+    this.emitter.emit('close', e);
   }
 
   /**
@@ -310,7 +328,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
    * @param message - Log message
    */
   protected log(type: string, message: string | object) {
-    this.emit('log', {
+    // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
+    this.emitter.emit('log', {
       type,
       message,
       date: new Date(),

@@ -14,6 +14,7 @@ import {
   useLogStore,
   useTools,
   ConversationTurn,
+  useUserSettings,
 } from '@/lib/state';
 
 const formatTimestamp = (date: Date) => {
@@ -53,7 +54,7 @@ const renderContent = (text: string) => {
 
 export default function StreamingConsole() {
   const { client, setConfig } = useLiveAPIContext();
-  const { systemPrompt, voice } = useSettings();
+  const { rolesAndDescription, voice } = useUserSettings();
   const { tools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -93,7 +94,7 @@ export default function StreamingConsole() {
       systemInstruction: {
         parts: [
           {
-            text: systemPrompt,
+            text: rolesAndDescription,
           },
         ],
       },
@@ -101,7 +102,7 @@ export default function StreamingConsole() {
     };
 
     setConfig(config);
-  }, [setConfig, systemPrompt, tools, voice]);
+  }, [setConfig, rolesAndDescription, tools, voice]);
 
   useEffect(() => {
     const { addTurn, updateLastTurn } = useLogStore.getState();
