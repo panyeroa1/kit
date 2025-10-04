@@ -171,23 +171,6 @@ export default function Sidebar() {
                       </p>
                     )}
                   </label>
-                  <label>
-                    Redirect URI
-                    <input
-                      type="text"
-                      placeholder="e.g., https://your-app.com/callback"
-                      value={googleIntegration.redirectUri}
-                      onChange={e =>
-                        googleIntegration.setRedirectUri(e.target.value)
-                      }
-                      aria-invalid={!!googleIntegration.errors.redirectUri}
-                    />
-                    {googleIntegration.errors.redirectUri && (
-                      <p className="validation-error">
-                        {googleIntegration.errors.redirectUri}
-                      </p>
-                    )}
-                  </label>
                 </fieldset>
                 <div className="credential-actions">
                   {googleIntegration.isConfigured ? (

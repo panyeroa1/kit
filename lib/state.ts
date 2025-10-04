@@ -342,11 +342,9 @@ interface GoogleIntegrationState {
   errors: {
     clientId?: string;
     clientSecret?: string;
-    redirectUri?: string;
   };
   setClientId: (id: string) => void;
   setClientSecret: (secret: string) => void;
-  setRedirectUri: (uri: string) => void;
   validateCredentials: () => boolean;
   saveCredentials: () => void;
 }
@@ -356,17 +354,15 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
     clientId:
       '73350400049-umtdnv3ju4ci46eqkver143hh4er63ap.apps.googleusercontent.com',
     clientSecret: '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',
-    redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
-    isConfigured: false,
+    redirectUri: 'https://voice.kithai.site/',
+    isConfigured: true,
     isValidated: false,
     errors: {},
     setClientId: id => set({ clientId: id, isValidated: false, errors: {} }),
     setClientSecret: secret =>
       set({ clientSecret: secret, isValidated: false, errors: {} }),
-    setRedirectUri: uri =>
-      set({ redirectUri: uri, isValidated: false, errors: {} }),
     validateCredentials: () => {
-      const { clientId, clientSecret, redirectUri } = get();
+      const { clientId, clientSecret } = get();
       const newErrors: GoogleIntegrationState['errors'] = {};
       let isValid = true;
 
@@ -382,28 +378,6 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
       if (!clientSecret) {
         newErrors.clientSecret = 'Client Secret cannot be empty.';
         isValid = false;
-      }
-
-      if (!redirectUri) {
-        newErrors.redirectUri = 'Redirect URI is required.';
-        isValid = false;
-      } else {
-        try {
-          const url = new URL(redirectUri);
-          // Simple check for localhost or https
-          if (
-            url.protocol !== 'https:' &&
-            url.hostname !== 'localhost' &&
-            url.hostname !== '127.0.0.1'
-          ) {
-            newErrors.redirectUri =
-              'Redirect URI must be a valid HTTPS URL.';
-            isValid = false;
-          }
-        } catch (_) {
-          newErrors.redirectUri = 'Redirect URI must be a valid URL.';
-          isValid = false;
-        }
       }
 
       set({ errors: newErrors, isValidated: isValid });
