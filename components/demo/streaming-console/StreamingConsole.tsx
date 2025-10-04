@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import WelcomeScreen from '../welcome-screen/WelcomeScreen';
 // FIX: Import LiveServerContent to correctly type the content handler.
-import { LiveConnectConfig, Modality, LiveServerContent } from '@google/genai';
+import { LiveConnectConfig, Modality, LiveServerContent, FunctionDeclaration } from '@google/genai';
 
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import {
@@ -14,6 +14,8 @@ import {
   useTools,
   ConversationTurn,
   useUserSettings,
+  businessAssistantTools,
+  FunctionCall,
 } from '@/lib/state';
 
 const formatTimestamp = (date: Date) => {
@@ -53,12 +55,33 @@ const renderContent = (text: string) => {
 
 export default function StreamingConsole() {
   const { client, setConfig } = useLiveAPIContext();
-  const { rolesAndDescription, voice } = useUserSettings();
+  const { rolesAndDescription, voice, isGmailConnected } = useUserSettings();
+  const { tools: templateTools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Set the configuration for the Live API
   useEffect(() => {
+    const gmailTools: FunctionCall[] = isGmailConnected
+      ? businessAssistantTools
+      : [];
+
+    const enabledTools = [
+      ...templateTools.filter(t => t.isEnabled),
+      ...gmailTools,
+    ].filter(
+      (tool, index, self) =>
+        index === self.findIndex(t => t.name === tool.name),
+    );
+
+    const functionDeclarations: FunctionDeclaration[] = enabledTools.map(
+      ({ name, description, parameters }) => ({
+        name,
+        description: description || '',
+        parameters,
+      }),
+    );
+    
     // Using `any` for config to accommodate `speechConfig`, which is not in the
     // current TS definitions but is used in the working reference example.
     const config: any = {
@@ -73,11 +96,14 @@ export default function StreamingConsole() {
       inputAudioTranscription: {},
       outputAudioTranscription: {},
       systemInstruction: rolesAndDescription,
-      tools: [{ googleSearch: {} }],
+      tools: [
+        { functionDeclarations: functionDeclarations },
+        { googleSearch: {} }
+      ],
     };
 
     setConfig(config);
-  }, [setConfig, rolesAndDescription, voice]);
+  }, [setConfig, rolesAndDescription, voice, templateTools, isGmailConnected]);
 
   useEffect(() => {
     const { addTurn, updateLastTurn } = useLogStore.getState();

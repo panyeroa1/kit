@@ -24,7 +24,7 @@ import { LiveConnectConfig, Modality, LiveServerToolCall } from '@google/genai';
 import { AudioStreamer } from '../../lib/audio-streamer';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
-import { useLogStore, useSettings } from '@/lib/state';
+import { useLogStore, useSettings, useUserSettings } from '@/lib/state';
 
 export type UseLiveApiResults = {
   client: GenAILiveClient;
@@ -38,13 +38,130 @@ export type UseLiveApiResults = {
   volume: number;
 };
 
+async function handleSendEmail(
+  args: any,
+  auth: { isGmailConnected: boolean; accessToken: string | null },
+) {
+  if (!auth.isGmailConnected || !auth.accessToken) {
+    return 'User is not connected to Gmail. Please ask them to connect their account through the settings.';
+  }
+
+  const { recipient, subject, body } = args;
+  if (!recipient || !subject || !body) {
+    return 'Missing required parameters for sending an email. I need a recipient, a subject, and a body.';
+  }
+
+  // Create RFC 2822 message
+  const email = [
+    `To: ${recipient}`,
+    'Content-Type: text/plain; charset=utf-8',
+    'MIME-Version: 1.0',
+    `Subject: ${subject}`,
+    '',
+    body,
+  ].join('\r\n');
+
+  // Using btoa(unescape(encodeURIComponent(str))) for proper UTF-8 handling
+  const base64EncodedEmail = btoa(unescape(encodeURIComponent(email)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  try {
+    const response = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          raw: base64EncodedEmail,
+        }),
+      },
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      console.error('Gmail API error:', data);
+      return `Failed to send email: ${data.error.message}`;
+    }
+    return 'Email sent successfully.';
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return `An error occurred while sending the email: ${
+      (error as Error).message
+    }`;
+  }
+}
+
+async function handleReadEmails(
+  args: any,
+  auth: { isGmailConnected: boolean; accessToken: string | null },
+) {
+  if (!auth.isGmailConnected || !auth.accessToken) {
+    return 'User is not connected to Gmail. Please ask them to connect their account through the settings.';
+  }
+
+  const { count = 5, from, subject, unreadOnly = true } = args;
+  let query = '';
+  if (from) query += `from:${from} `;
+  if (subject) query += `subject:(${subject}) `;
+  if (unreadOnly) query += `is:unread `;
+
+  try {
+    const listResponse = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${count}&q=${encodeURIComponent(
+        query.trim(),
+      )}`,
+      {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      },
+    );
+    const listData = await listResponse.json();
+    if (!listResponse.ok) throw new Error(listData.error.message);
+
+    if (!listData.messages || listData.messages.length === 0) {
+      return 'No matching emails found.';
+    }
+
+    const emailPromises = listData.messages.map((message: any) =>
+      fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`,
+        {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        },
+      ).then(res => res.json()),
+    );
+
+    const emails = await Promise.all(emailPromises);
+
+    const summaries = emails.map(email => {
+      const fromHeader =
+        email.payload.headers.find((h: any) => h.name === 'From')?.value ||
+        'Unknown Sender';
+      const subjectHeader =
+        email.payload.headers.find((h: any) => h.name === 'Subject')?.value ||
+        'No Subject';
+      return `From: ${fromHeader}, Subject: ${subjectHeader}`;
+    });
+
+    return `Here are the latest emails:\n- ${summaries.join('\n- ')}`;
+  } catch (error) {
+    console.error('Error reading emails:', error);
+    return `An error occurred while reading emails: ${(error as Error).message}`;
+  }
+}
+
 export function useLiveApi({
   apiKey,
 }: {
   apiKey: string;
 }): UseLiveApiResults {
   const { model } = useSettings();
-  const client = useMemo(() => new GenAILiveClient(apiKey, model), [apiKey, model]);
+  const client = useMemo(
+    () => new GenAILiveClient(apiKey, model),
+    [apiKey, model],
+  );
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
 
@@ -98,7 +215,8 @@ export function useLiveApi({
     client.on('interrupted', stopAudioStreamer);
     client.on('audio', onAudio);
 
-    const onToolCall = (toolCall: LiveServerToolCall) => {
+    const onToolCall = async (toolCall: LiveServerToolCall) => {
+      const { isGmailConnected, accessToken } = useUserSettings.getState();
       const functionResponses: any[] = [];
 
       for (const fc of toolCall.functionCalls) {
@@ -112,18 +230,38 @@ export function useLiveApi({
           isFinal: true,
         });
 
-        // Prepare the response
+        let resultPromise;
+
+        switch (fc.name) {
+          case 'send_email':
+            resultPromise = handleSendEmail(fc.args, {
+              isGmailConnected,
+              accessToken,
+            });
+            break;
+          case 'read_emails':
+            resultPromise = handleReadEmails(fc.args, {
+              isGmailConnected,
+              accessToken,
+            });
+            break;
+          default:
+            resultPromise = Promise.resolve('ok'); // Default for other tools
+        }
+
+        const result = await resultPromise;
+
         functionResponses.push({
           id: fc.id,
           name: fc.name,
-          response: { result: 'ok' }, // simple, hard-coded function response
+          response: { result: result },
         });
       }
 
       // Log the function call response
       if (functionResponses.length > 0) {
         const responseMessage = `Function call response:\n\`\`\`json\n${JSON.stringify(
-          functionResponses,
+          functionResponses.map(r => r.response.result),
           null,
           2,
         )}\n\`\`\``;

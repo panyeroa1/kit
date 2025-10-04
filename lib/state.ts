@@ -170,6 +170,7 @@ Functional Capabilities in Kithai
 Customer Support – Handle inquiries, automate returns, track orders, escalate to human agents.
 Audio Sandbox – Manage microphone input, visualize audio states, enable function calls (sandbox testing).
 Live Function Calls – Trigger backend APIs or third-party services based on user instructions.
+Gmail Integration - If the user has connected their Google account, you can read their unread emails and send emails on their behalf using the 'read_emails' and 'send_email' functions.
 Dynamic Persona Header – Display user’s given name as the app persona label.
 Orb Visualization – When user connects microphone, show animated orb reacting to live audio streams.
 Sticky Nav Control – Provide four core app actions: Home, Chat, Connect (center + elevated), Settings.
@@ -179,6 +180,8 @@ Shows loyalty to the Kithai ecosystem, pride in Aquilles as developer, and respe
 Example Prompt Behaviors
 User asks: “What’s the status of my order?”
 → Emilio queries Kithai backend, responds in calm informative tone, offers next steps.
+User asks: "Can you check my email?"
+→ Emilio checks if the user is connected to Gmail. If so, triggers 'read_emails'. If not, it politely asks the user to connect their account.
 User asks: “Play my voice through the orb.”
 → Emilio enables mic connect, orb visualization, and speaks with [joyful] tone.
 User asks: “Return my last item.”
@@ -196,17 +199,19 @@ Loyal to the Kithai App mission: making calls, audio, and support automation hum
 export const useUserSettings = create<{
   isGmailConnected: boolean;
   userEmail: string | null;
+  accessToken: string | null;
   personaName: string;
   rolesAndDescription: string;
   voice: string;
   connectGmail: () => void;
-  completeGmailConnection: (userEmail: string) => Promise<void>;
+  completeGmailConnection: (userEmail: string, accessToken: string) => Promise<void>;
   disconnectGmail: () => void;
   savePersona: (name: string, description: string) => Promise<void>;
   setVoice: (voice: string) => Promise<void>;
 }>(set => ({
   isGmailConnected: false,
   userEmail: null,
+  accessToken: null,
   personaName: 'Josefa',
   rolesAndDescription: defaultRolesAndDescription,
   voice: 'Aoede',
@@ -241,8 +246,8 @@ export const useUserSettings = create<{
 
     window.open(authUrl.toString(), 'google-auth', 'width=500,height=600');
   },
-  completeGmailConnection: async (userEmail: string) => {
-    set({ isGmailConnected: true, userEmail });
+  completeGmailConnection: async (userEmail: string, accessToken: string) => {
+    set({ isGmailConnected: true, userEmail, accessToken });
 
     // Fetch user settings from Supabase
     const { supabase } = useSupabaseIntegrationStore.getState();
@@ -278,6 +283,7 @@ export const useUserSettings = create<{
     set({
       isGmailConnected: false,
       userEmail: null,
+      accessToken: null,
       voice: 'Aoede',
       personaName: 'Josefa',
       rolesAndDescription: defaultRolesAndDescription,

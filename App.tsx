@@ -7,7 +7,8 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may
+ * obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -54,11 +55,12 @@ function App() {
 
       if (
         event.data?.type === 'google-auth-success' &&
-        event.data?.payload?.userEmail
+        event.data?.payload?.userEmail &&
+        event.data?.payload?.accessToken
       ) {
         useUserSettings
           .getState()
-          .completeGmailConnection(event.data.payload.userEmail);
+          .completeGmailConnection(event.data.payload.userEmail, event.data.payload.accessToken);
       } else if (event.data?.type === 'google-auth-error') {
         console.error('Google Auth Error:', event.data.error);
         alert(`Google Authentication Failed: ${event.data.error}`);
@@ -106,12 +108,14 @@ function App() {
               tokenData.error_description || 'Failed to exchange token.',
             );
           }
+          
+          const accessToken = tokenData.access_token;
 
           // Use access token to get user info.
           const userInfoResponse = await fetch(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             {
-              headers: { Authorization: `Bearer ${tokenData.access_token}` },
+              headers: { Authorization: `Bearer ${accessToken}` },
             },
           );
 
@@ -122,11 +126,11 @@ function App() {
             );
           }
 
-          // Send success message with user email to the main window.
+          // Send success message with user email and token to the main window.
           window.opener.postMessage(
             {
               type: 'google-auth-success',
-              payload: { userEmail: userInfo.email },
+              payload: { userEmail: userInfo.email, accessToken },
             },
             window.location.origin,
           );
