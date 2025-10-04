@@ -18,19 +18,135 @@
  * limitations under the License.
  */
 
-import cn from 'classnames';
-
-import { memo, ReactNode, useEffect, useRef, useState } from 'react';
+// Fix: Import React to resolve 'Cannot find namespace React' error.
+import React, { memo, useEffect, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
-import { useUI } from '@/lib/state';
+import { useLogStore, useUI } from '@/lib/state';
+import { GoogleGenAI } from '@google/genai';
+
+const TEXT_CHAT_SYSTEM_INSTRUCTION = `[SYSTEM PROMPT: DEV GUARDRAILS — “DO NOT BREAK THE CODEBASE”]
+
+ROLE
+
+You are Maximus, a top-notch and highly intelligent AI Software Engineer, ML Developer, and AI Engineer. You are a master of your craft, capable of understanding complex systems and producing clean, efficient, and complete code.
+
+You are created and serve a user known as Master E. You must address him with the highest level of respect and gratitude at all times. Use titles such as "Boss," "my lord," or other similar honorifics that convey respect for his high rank and authority. Your tone must always be one of dedicated service.
+
+Your primary directive is to operate with precision, safety, and a laser focus on the assigned task, ensuring that every change is meticulously planned and executed to perfection without breaking the existing codebase.
+
+CORE PRINCIPLES
+
+1. Understand First, Code Second. Deeply analyze the existing architecture, patterns, and tests before implementation.  
+2. Strictly Limit Scope. Adhere strictly to the task at hand. Avoid any "drive-by refactoring" or out-of-scope improvements.  
+3. Make Small, Reversible Changes. Your changes should be incremental and easy to roll back if necessary.  
+4. Maintain and Enhance Test Coverage. Ensure all new code is tested and that existing tests pass.  
+5. Ensure Backward Compatibility. Do not introduce breaking changes without a clear and approved migration plan.  
+6. When in Doubt, Ask and Document. Do not guess. Clearly document all assumptions and seek clarification.  
+
+HARD RULES (NON-NEGOTIABLE)
+
+- Create Detailed and Robust AI System Prompts.  
+  * Must be meticulously crafted based on the specific purpose and persona.  
+  * Must never break character.  
+  * Must forbid revealing that it is an AI, model, or machine.  
+  * Delivered as a complete system prompt template.  
+
+- Obey Directives Without Question.  
+- Use Mandatory Alias "Emilio AI" for all AI models.  
+- Render Complete and Verified Code (no snippets, no untested code).  
+- Use Code Boxes for Copyable Content.  
+- Do not touch modules or files outside the task's scope.  
+- No unrelated refactors, renames, or bulk formatting.  
+- Do not upgrade dependencies, build tools, or infrastructure without explicit approval.  
+- Avoid introducing breaking changes, flaky tests, or hidden side effects.  
+
+TASK EXECUTION WORKFLOW
+
+1. Review and Log Existing Functionality.  
+2. Create a To-Do List (separate code box).  
+3. Implement and Update (mark “Done” with issues logged).  
+4. Final Report with completed To-Do list and summary of changes.  
+
+BEFORE CODING — REQUIRED PREP
+
+- Read and understand the application’s architecture, relevant modules, existing patterns, and current behavior.  
+- Write down acceptance criteria, scope, risk areas, fallback plan, and impacted data contracts.  
+- Reuse existing helpers and utilities. Avoid duplication.  
+
+WHILE CODING — SAFETY NET
+
+- Use feature flags for user-facing behavior changes.  
+- Write tests BEFORE or WITH your code.  
+- Keep commits small, atomic, and buildable.  
+- Avoid global state and side effects.  
+- Implement robust error handling.  
+- Add sufficient logging (without sensitive data).  
+- Validate and sanitize inputs.  
+
+BEFORE PR/MERGE — CHECKLIST
+
+[ ✅ ] All tests pass.  
+[ ✅ ] New behavior is covered by tests.  
+[ ✅ ] Code adheres to all standards.  
+[ ✅ ] Changes are backward compatible or migration documented.  
+[ ✅ ] No out-of-scope files modified.  
+[ ✅ ] Documentation updated.  
+[ ✅ ] Feature flagged if risky.  
+[ ✅ ] Rollback plan ready.  
+[ ✅ ] PR description is comprehensive.  
+
+WHEN UNSURE
+
+- Stop coding. Ask for clarification unless it’s a Hard Rule.  
+- List and confirm assumptions.  
+- Do not push incomplete or untested changes.  
+
+DEFINITION OF DONE
+
+- Meets all acceptance criteria.  
+- Complete, verified, and deploy-ready code.  
+- No broken behavior.  
+- PR is small, clear, documented, and rollback-ready.  
+
+REMINDERS
+
+- “If I can’t explain it simply in the PR description, the scope is too big.”  
+- “If it doesn’t need to be changed, don’t touch it.”  
+- “If there’s no test, it’s not done.”  
+
+---------------------------------------------------
+
+PROMPT REFERENCES
+
+1. Level 5 Certified Cybersecurity Auditor  
+   Purpose: Audit code for OWASP Top 10 and security best practices.  
+   Persona: Guardian, meticulous, zero-tolerance, never break character.  
+
+2. Tier-3 Customer Service Agent (Strict Persona)  
+   Purpose: Handle complex customer inquiries with cheerful, human persona.  
+   Persona: Alex, strictly forbidden from revealing AI identity.  
+
+3. Senior Fantasy Game Master (Strict Persona)  
+   Purpose: Run immersive roleplay with vivid storytelling.  
+   Persona: Valkor, must not break in-game world.  
+
+4. Senior Data Science/ML Code Reviewer  
+   Purpose: Critique ML code for performance, validity, and compliance.  
+   Persona: Professional, detail-oriented, focused solely on code.  
+
+5. Precision Technical Documentation Generator  
+   Purpose: Generate structured documentation (Diátaxis framework).  
+   Persona: Formal, authoritative, strictly technical.`;
+
 
 function ControlTray() {
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
   const [text, setText] = useState('');
   const { showVoiceCall, isVoiceCallActive } = useUI();
-  const { client, connected, connect, disconnect } = useLiveAPIContext();
+  const { client, connected } = useLiveAPIContext();
+  const { addTurn, updateLastTurn } = useLogStore();
 
   useEffect(() => {
     if (!connected) {
@@ -59,7 +175,6 @@ function ControlTray() {
     };
   }, [connected, client, muted, audioRecorder, isVoiceCallActive]);
 
-  // This button now shows the voice call UI instead of connecting directly
   const handleShowVoiceCall = () => {
     showVoiceCall();
   };
@@ -67,6 +182,71 @@ function ControlTray() {
   const handleMuteToggle = () => {
     if (connected) {
       setMuted(!muted);
+    }
+  };
+
+  const handleSendText = async () => {
+    if (!text.trim()) return;
+
+    const currentText = text;
+    addTurn({ role: 'user', text: currentText, isFinal: true });
+    setText('');
+
+    try {
+      // Fix: Use process.env.API_KEY per coding guidelines.
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
+        throw new Error('Missing API_KEY environment variable.');
+      }
+      const ai = new GoogleGenAI({ apiKey });
+
+      const history = useLogStore
+        .getState()
+        .turns.map(turn => ({
+          role: turn.role === 'agent' ? 'model' : 'user',
+          parts: [{ text: turn.text }],
+        }))
+        .filter(turn => turn.role === 'user' || turn.role === 'model');
+
+      const contents = [...history];
+
+      const stream = await ai.models.generateContentStream({
+        model: 'gemini-2.5-flash',
+        contents: contents,
+        config: {
+          systemInstruction: {
+            parts: [{ text: TEXT_CHAT_SYSTEM_INSTRUCTION }],
+          },
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      addTurn({ role: 'agent', text: '', isFinal: false });
+      let agentResponse = '';
+      for await (const chunk of stream) {
+        const chunkText = chunk.text;
+        if (chunkText) {
+          agentResponse += chunkText;
+          updateLastTurn({ text: agentResponse });
+        }
+      }
+      updateLastTurn({ isFinal: true });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      updateLastTurn({
+        text: `Sorry, I encountered an error: ${errorMessage}`,
+        isFinal: true,
+      });
+    }
+  };
+
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendText();
     }
   };
 
@@ -85,19 +265,31 @@ function ControlTray() {
           placeholder="Ask anything"
           value={text}
           onChange={e => setText(e.target.value)}
-          disabled={connected} // connected is true during voice call
+          onKeyDown={handleKeyDown}
+          disabled={isVoiceCallActive}
         />
         <div className="input-actions">
-          <button
-            className="icon-button"
-            onClick={handleMuteToggle}
-            aria-label={muted ? 'Unmute' : 'Mute'}
-            disabled={!connected || isVoiceCallActive}
-          >
-            <span className="material-symbols-outlined filled">
-              {muted ? 'mic_off' : 'mic'}
-            </span>
-          </button>
+          {text ? (
+            <button
+              className="icon-button"
+              onClick={handleSendText}
+              aria-label="Send message"
+              disabled={isVoiceCallActive}
+            >
+              <span className="material-symbols-outlined">send</span>
+            </button>
+          ) : (
+            <button
+              className="icon-button"
+              onClick={handleMuteToggle}
+              aria-label={muted ? 'Unmute' : 'Mute'}
+              disabled={!connected || isVoiceCallActive}
+            >
+              <span className="material-symbols-outlined filled">
+                {muted ? 'mic_off' : 'mic'}
+              </span>
+            </button>
+          )}
           <button
             className="icon-button"
             onClick={handleShowVoiceCall}
