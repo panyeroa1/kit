@@ -1531,3 +1531,30 @@ form button:first-of-type {
 .voice-call-button.end-call:hover {
   background-color: var(--Red-700);
 }
+
+/* Snackbar */
+.snackbar {
+  visibility: hidden;
+  min-width: 250px;
+  background-color: var(--Green-500);
+  color: var(--Neutral-00);
+  text-align: center;
+  border-radius: 8px;
+  padding: 16px;
+  position: fixed;
+  z-index: 10001; /* Higher than other elements */
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 100px; /* Above control tray */
+  font-size: 16px;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: all 0.4s ease-in-out;
+}
+
+.snackbar.show {
+  visibility: visible;
+  opacity: 1;
+  bottom: 120px;
+}

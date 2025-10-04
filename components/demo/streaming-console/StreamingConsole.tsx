@@ -17,6 +17,7 @@ import {
   businessAssistantTools,
   FunctionCall,
 } from '@/lib/state';
+import { coreTools } from '@/lib/tools/core';
 
 const formatTimestamp = (date: Date) => {
   const pad = (num: number, size = 2) => num.toString().padStart(size, '0');
@@ -55,7 +56,7 @@ const renderContent = (text: string) => {
 
 export default function StreamingConsole() {
   const { client, setConfig } = useLiveAPIContext();
-  const { rolesAndDescription, voice, isGmailConnected } = useUserSettings();
+  const { voice, isGmailConnected, getSystemPrompt } = useUserSettings();
   const { tools: templateTools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -66,10 +67,13 @@ export default function StreamingConsole() {
       ? businessAssistantTools
       : [];
 
-    const enabledTools = [
+    const allTools = [
       ...templateTools.filter(t => t.isEnabled),
       ...gmailTools,
-    ].filter(
+      ...coreTools,
+    ];
+
+    const enabledTools = allTools.filter(
       (tool, index, self) =>
         index === self.findIndex(t => t.name === tool.name),
     );
@@ -95,7 +99,7 @@ export default function StreamingConsole() {
       },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
-      systemInstruction: rolesAndDescription,
+      systemInstruction: getSystemPrompt(),
       tools: [
         { functionDeclarations: functionDeclarations },
         { googleSearch: {} }
@@ -103,7 +107,7 @@ export default function StreamingConsole() {
     };
 
     setConfig(config);
-  }, [setConfig, rolesAndDescription, voice, templateTools, isGmailConnected]);
+  }, [setConfig, getSystemPrompt, voice, templateTools, isGmailConnected]);
 
   useEffect(() => {
     const { addTurn, updateLastTurn } = useLogStore.getState();

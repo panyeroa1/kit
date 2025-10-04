@@ -7,8 +7,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may
- * obtain a copy of the License at
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -29,6 +28,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { LiveAPIProvider } from './contexts/LiveAPIContext';
 import { useUI, useUserSettings, useGoogleIntegrationStore } from './lib/state';
+import Snackbar from './components/Snackbar';
 
 // Fix: Use process.env.API_KEY per coding guidelines.
 const API_KEY = process.env.API_KEY as string;
@@ -184,6 +184,7 @@ function App() {
             <ControlTray />
           </main>
         </div>
+        <Snackbar />
       </LiveAPIProvider>
     </div>
   );

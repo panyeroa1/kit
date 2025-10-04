@@ -152,6 +152,16 @@ async function handleReadEmails(
   }
 }
 
+async function handleSaveMemory(args: any) {
+  const { text_to_remember } = args;
+  if (!text_to_remember) {
+    return 'Missing required text to remember.';
+  }
+  await useUserSettings.getState().addMemory(text_to_remember);
+  return 'Information noted.';
+}
+
+
 export function useLiveApi({
   apiKey,
 }: {
@@ -244,6 +254,9 @@ export function useLiveApi({
               isGmailConnected,
               accessToken,
             });
+            break;
+          case 'save_memory':
+            resultPromise = handleSaveMemory(fc.args);
             break;
           default:
             resultPromise = Promise.resolve('ok'); // Default for other tools
