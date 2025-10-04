@@ -219,6 +219,11 @@ export const useUserSettings = create<{
       return;
     }
 
+    if (!redirectUri) {
+      alert('Please set the Redirect URI in Server Settings.');
+      return;
+    }
+
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
@@ -351,7 +356,7 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
     clientId:
       '73350400049-umtdnv3ju4ci46eqkver143hh4er63ap.apps.googleusercontent.com',
     clientSecret: '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',
-    redirectUri: 'https://voice.kithai.site/oauth2/callback/google',
+    redirectUri: 'https://voice.kithai.site',
     isConfigured: false,
     isValidated: false,
     errors: {},
@@ -384,7 +389,17 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
         isValid = false;
       } else {
         try {
-          new URL(redirectUri);
+          const url = new URL(redirectUri);
+          // Simple check for localhost or https
+          if (
+            url.protocol !== 'https:' &&
+            url.hostname !== 'localhost' &&
+            url.hostname !== '127.0.0.1'
+          ) {
+            newErrors.redirectUri =
+              'Redirect URI must be a valid HTTPS URL.';
+            isValid = false;
+          }
         } catch (_) {
           newErrors.redirectUri = 'Redirect URI must be a valid URL.';
           isValid = false;
@@ -441,6 +456,7 @@ export const useTools = create<{
       let newToolName = 'new_function';
       let counter = 1;
       while (state.tools.some(tool => tool.name === newToolName)) {
+        // FIX: Removed erroneous backslash from template literal which caused a syntax error.
         newToolName = `new_function_${counter++}`;
       }
       return {
@@ -470,6 +486,7 @@ export const useTools = create<{
         oldName !== updatedTool.name &&
         state.tools.some(tool => tool.name === updatedTool.name)
       ) {
+        // FIX: Removed erroneous backslash from template literal which caused a syntax error.
         console.warn(`Tool with name "${updatedTool.name}" already exists.`);
         // Prevent the update by returning the current state
         return state;

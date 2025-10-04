@@ -27,7 +27,7 @@ import VoiceCall from './components/demo/VoiceCall';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { LiveAPIProvider } from './contexts/LiveAPIContext';
-import { useUI, useUserSettings } from './lib/state';
+import { useUI, useUserSettings, useGoogleIntegrationStore } from './lib/state';
 
 // Fix: Use process.env.API_KEY per coding guidelines.
 const API_KEY = process.env.API_KEY as string;
@@ -44,10 +44,14 @@ if (typeof API_KEY !== 'string') {
 function App() {
   const { isVoiceCallActive } = useUI();
 
+  // Listener for the main window to receive auth confirmation from the popup.
   useEffect(() => {
     const handleAuthMessage = (event: MessageEvent) => {
-      // In a production app, you would want to add a security check for the event's origin.
-      // e.g., if (event.origin !== 'https://your-auth-callback-domain.com') return;
+      // Security: Check event origin in a production app
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
       if (
         event.data?.type === 'google-auth-success' &&
         event.data?.payload?.userEmail
@@ -55,6 +59,9 @@ function App() {
         useUserSettings
           .getState()
           .completeGmailConnection(event.data.payload.userEmail);
+      } else if (event.data?.type === 'google-auth-error') {
+        console.error('Google Auth Error:', event.data.error);
+        alert(`Google Authentication Failed: ${event.data.error}`);
       }
     };
 
@@ -64,6 +71,101 @@ function App() {
       window.removeEventListener('message', handleAuthMessage);
     };
   }, []);
+
+  // Effect to handle the OAuth callback logic when the app is loaded in the popup.
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+
+      // Only proceed if we're in a popup and have an authorization code.
+      if (window.opener && code) {
+        try {
+          const { clientId, clientSecret, redirectUri } =
+            useGoogleIntegrationStore.getState();
+
+          // Exchange authorization code for access token.
+          const tokenResponse = await fetch(
+            'https://oauth2.googleapis.com/token',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code,
+                client_id: clientId,
+                client_secret: clientSecret,
+                redirect_uri: redirectUri,
+                grant_type: 'authorization_code',
+              }),
+            },
+          );
+
+          const tokenData = await tokenResponse.json();
+          if (!tokenResponse.ok) {
+            throw new Error(
+              tokenData.error_description || 'Failed to exchange token.',
+            );
+          }
+
+          // Use access token to get user info.
+          const userInfoResponse = await fetch(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            {
+              headers: { Authorization: `Bearer ${tokenData.access_token}` },
+            },
+          );
+
+          const userInfo = await userInfoResponse.json();
+          if (!userInfoResponse.ok) {
+            throw new Error(
+              userInfo.error_description || 'Failed to fetch user info.',
+            );
+          }
+
+          // Send success message with user email to the main window.
+          window.opener.postMessage(
+            {
+              type: 'google-auth-success',
+              payload: { userEmail: userInfo.email },
+            },
+            window.location.origin,
+          );
+        } catch (error) {
+          console.error('OAuth callback error:', error);
+          // Send error message to the main window.
+          window.opener.postMessage(
+            { type: 'google-auth-error', error: (error as Error).message },
+            window.location.origin,
+          );
+        } finally {
+          // Close the popup window.
+          window.close();
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, []);
+
+  // If the app is loaded in the auth popup, render a loading message instead of the full UI.
+  const params = new URLSearchParams(window.location.search);
+  if (window.opener && params.has('code')) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          background: '#000',
+          color: '#fff',
+          fontFamily: 'sans-serif',
+        }}
+      >
+        <p>Authenticating, please wait...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="App">
