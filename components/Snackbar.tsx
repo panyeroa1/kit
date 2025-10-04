@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import React, { useEffect } from 'react';
-import { useUI } from '../../lib/state';
+import { useUI } from '@/lib/state';
 import cn from 'classnames';
 
 const SNACKBAR_TIMEOUT = 4000;
