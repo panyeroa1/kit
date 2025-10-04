@@ -474,6 +474,76 @@ export const useGoogleIntegrationStore = create(persist<GoogleIntegrationState>(
 ));
 
 /**
+ * WhatsApp Integration Admin Settings
+ */
+interface WhatsAppIntegrationState {
+  phoneNumberId: string;
+  wabaId: string; // WhatsApp Business Account ID
+  accessToken: string;
+  isConfigured: boolean;
+  isValidated: boolean;
+  errors: {
+    phoneNumberId?: string;
+    wabaId?: string;
+    accessToken?: string;
+  };
+  setPhoneNumberId: (id: string) => void;
+  setWabaId: (id: string) => void;
+  setAccessToken: (token: string) => void;
+  validateCredentials: () => boolean;
+  saveCredentials: () => void;
+}
+
+export const useWhatsAppIntegrationStore = create(
+  persist<WhatsAppIntegrationState>(
+    (set, get) => ({
+      phoneNumberId: '',
+      wabaId: '',
+      accessToken: '',
+      isConfigured: false,
+      isValidated: false,
+      errors: {},
+      setPhoneNumberId: id =>
+        set({ phoneNumberId: id, isValidated: false, errors: {} }),
+      setWabaId: id => set({ wabaId: id, isValidated: false, errors: {} }),
+      setAccessToken: token =>
+        set({ accessToken: token, isValidated: false, errors: {} }),
+      validateCredentials: () => {
+        const { phoneNumberId, wabaId, accessToken } = get();
+        const newErrors: WhatsAppIntegrationState['errors'] = {};
+        let isValid = true;
+
+        if (!phoneNumberId) {
+          newErrors.phoneNumberId = 'Phone Number ID is required.';
+          isValid = false;
+        }
+        if (!wabaId) {
+          newErrors.wabaId = 'WhatsApp Business Account ID is required.';
+          isValid = false;
+        }
+        if (!accessToken) {
+          newErrors.accessToken = 'Access Token is required.';
+          isValid = false;
+        }
+
+        set({ errors: newErrors, isValidated: isValid });
+        return isValid;
+      },
+      saveCredentials: () => {
+        const isValid = get().validateCredentials();
+        if (isValid) {
+          console.log('Saving WhatsApp credentials (simulated)...');
+          set({ isConfigured: true });
+        }
+      },
+    }),
+    {
+      name: 'whatsapp-integration-storage',
+    },
+  ),
+);
+
+/**
  * Tools
  */
 export interface FunctionCall {

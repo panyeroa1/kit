@@ -10,6 +10,7 @@ import {
   useUserSettings,
   useGoogleIntegrationStore,
   useSupabaseIntegrationStore,
+  useWhatsAppIntegrationStore,
 } from '@/lib/state';
 import c from 'classnames';
 import { AVAILABLE_VOICES_MAP } from '@/lib/constants';
@@ -35,6 +36,7 @@ export default function Sidebar() {
 
   const googleIntegration = useGoogleIntegrationStore();
   const supabaseIntegration = useSupabaseIntegrationStore();
+  const whatsAppIntegration = useWhatsAppIntegrationStore();
 
   const [editingTool, setEditingTool] = useState<FunctionCall | null>(null);
   const [activeTab, setActiveTab] = useState('server');
@@ -199,6 +201,110 @@ export default function Sidebar() {
                           className="gradient-button"
                           onClick={googleIntegration.saveCredentials}
                           disabled={!googleIntegration.isValidated || connected}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="sidebar-section settings-card">
+                <h4 className="sidebar-section-title">WhatsApp Credentials</h4>
+                <p className="description-text">
+                  Configure your WhatsApp Business API credentials from your{' '}
+                  <a
+                    href="https://developers.facebook.com/apps/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Meta for Developers
+                  </a>
+                  .
+                </p>
+                <fieldset
+                  disabled={connected || whatsAppIntegration.isConfigured}
+                >
+                  <label>
+                    Phone Number ID
+                    <input
+                      type="text"
+                      placeholder="Enter your Phone Number ID"
+                      value={whatsAppIntegration.phoneNumberId}
+                      onChange={e =>
+                        whatsAppIntegration.setPhoneNumberId(e.target.value)
+                      }
+                      aria-invalid={!!whatsAppIntegration.errors.phoneNumberId}
+                    />
+                    {whatsAppIntegration.errors.phoneNumberId && (
+                      <p className="validation-error">
+                        {whatsAppIntegration.errors.phoneNumberId}
+                      </p>
+                    )}
+                  </label>
+                  <label>
+                    WhatsApp Business Account ID
+                    <input
+                      type="text"
+                      placeholder="Enter your WABA ID"
+                      value={whatsAppIntegration.wabaId}
+                      onChange={e =>
+                        whatsAppIntegration.setWabaId(e.target.value)
+                      }
+                      aria-invalid={!!whatsAppIntegration.errors.wabaId}
+                    />
+                    {whatsAppIntegration.errors.wabaId && (
+                      <p className="validation-error">
+                        {whatsAppIntegration.errors.wabaId}
+                      </p>
+                    )}
+                  </label>
+                  <label>
+                    Access Token
+                    <input
+                      type="password"
+                      placeholder="Enter your temporary or permanent token"
+                      value={whatsAppIntegration.accessToken}
+                      onChange={e =>
+                        whatsAppIntegration.setAccessToken(e.target.value)
+                      }
+                      aria-invalid={!!whatsAppIntegration.errors.accessToken}
+                    />
+                    {whatsAppIntegration.errors.accessToken && (
+                      <p className="validation-error">
+                        {whatsAppIntegration.errors.accessToken}
+                      </p>
+                    )}
+                  </label>
+                </fieldset>
+                <div className="credential-actions">
+                  {whatsAppIntegration.isConfigured ? (
+                    <div className="status-indicator configured">
+                      <span className="icon">check_circle</span> Correctly
+                      Configured
+                    </div>
+                  ) : (
+                    <>
+                      {whatsAppIntegration.isValidated &&
+                        !Object.keys(whatsAppIntegration.errors).length && (
+                          <p className="validation-success">
+                            <span className="icon">check</span> All good. You
+                            can Save.
+                          </p>
+                        )}
+                      <div className="action-buttons">
+                        <button
+                          className="secondary-button"
+                          onClick={whatsAppIntegration.validateCredentials}
+                          disabled={connected}
+                        >
+                          Check
+                        </button>
+                        <button
+                          className="gradient-button"
+                          onClick={whatsAppIntegration.saveCredentials}
+                          disabled={!whatsAppIntegration.isValidated || connected}
                         >
                           Save
                         </button>
