@@ -68,37 +68,48 @@ const VoiceCall = () => {
 
   // Handle camera stream
   useEffect(() => {
+    if (!isCameraOn) {
+      // If camera is off, ensure any existing stream is stopped.
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      return;
+    }
+
+    // If camera is on, request stream.
     let stream: MediaStream | null = null;
-    const setupCamera = async () => {
-      if (isCameraOn) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          // If component unmounts during await, videoRef.current will be null.
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          } else {
-            // Stop the stream if the ref is gone, to release the camera.
-            stream?.getTracks().forEach(track => track.stop());
-          }
-        } catch (err) {
-          console.error('Error accessing camera:', err);
-          setIsCameraOn(false); // Turn off toggle if permission is denied
+    let cancelled = false;
+
+    const enableCamera = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (cancelled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
         }
-      } else {
-        if (videoRef.current?.srcObject) {
-          const tracks = (
-            videoRef.current.srcObject as MediaStream
-          ).getTracks();
-          tracks.forEach(track => track.stop());
-          videoRef.current.srcObject = null;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        } else {
+          // Component unmounted after await, but before assignment
+          stream.getTracks().forEach(track => track.stop());
+        }
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        if (!cancelled) {
+          setIsCameraOn(false); // Turn off toggle if permission is denied
         }
       }
     };
 
-    setupCamera();
+    enableCamera();
 
     return () => {
-      stream?.getTracks().forEach(track => track.stop());
+      cancelled = true;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
   }, [isCameraOn]);
 

@@ -18,6 +18,7 @@
  * limitations under the License.
  */
 
+import React, { useEffect } from 'react';
 import ControlTray from './components/console/control-tray/ControlTray';
 import ErrorScreen from './components/demo/ErrorScreen';
 import StreamingConsole from './components/demo/streaming-console/StreamingConsole';
@@ -26,7 +27,7 @@ import VoiceCall from './components/demo/VoiceCall';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { LiveAPIProvider } from './contexts/LiveAPIContext';
-import { useUI } from './lib/state';
+import { useUI, useUserSettings } from './lib/state';
 
 // Fix: Use process.env.API_KEY per coding guidelines.
 const API_KEY = process.env.API_KEY as string;
@@ -42,6 +43,28 @@ if (typeof API_KEY !== 'string') {
  */
 function App() {
   const { isVoiceCallActive } = useUI();
+
+  useEffect(() => {
+    const handleAuthMessage = (event: MessageEvent) => {
+      // In a production app, you would want to add a security check for the event's origin.
+      // e.g., if (event.origin !== 'https://your-auth-callback-domain.com') return;
+      if (
+        event.data?.type === 'google-auth-success' &&
+        event.data?.payload?.userEmail
+      ) {
+        useUserSettings
+          .getState()
+          .completeGmailConnection(event.data.payload.userEmail);
+      }
+    };
+
+    window.addEventListener('message', handleAuthMessage);
+
+    return () => {
+      window.removeEventListener('message', handleAuthMessage);
+    };
+  }, []);
+
   return (
     <div className="App">
       <LiveAPIProvider apiKey={API_KEY}>

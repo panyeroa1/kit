@@ -27,11 +27,10 @@ export default function Sidebar() {
     connectGmail,
     disconnectGmail,
     personaName,
-    setPersonaName,
     rolesAndDescription,
-    setRolesAndDescription,
     voice,
     setVoice,
+    savePersona,
   } = useUserSettings();
 
   const googleIntegration = useGoogleIntegrationStore();
@@ -60,9 +59,8 @@ export default function Sidebar() {
     setEditingTool(null);
   };
 
-  const handleSavePersona = () => {
-    setPersonaName(localPersonaName);
-    setRolesAndDescription(localRolesAndDescription);
+  const handleSavePersona = async () => {
+    await savePersona(localPersonaName, localRolesAndDescription);
   };
 
   const hasPersonaChanges =

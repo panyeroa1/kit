@@ -111,25 +111,32 @@ export const useUI = create<{
   hideVoiceCall: () => set({ isVoiceCallActive: false }),
 }));
 
+// Hardcode Supabase credentials and create client instance
+const supabaseUrl = 'https://iydbsuzawosivjjqgwcn.supabase.co';
+const supabaseAnonKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZGJzdXphd29zaXZqanFnd2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NzQ0NzcsImV4cCI6MjA3NTE1MDQ3N30.PNFW2DNJOOLi-sCCLX9vcBE7CTBrjuQJLyBF2z6yj3o';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 /**
- * User Settings
+ * Supabase Integration Admin Settings
  */
-export const useUserSettings = create<{
-  isGmailConnected: boolean;
-  userEmail: string | null;
-  personaName: string;
-  rolesAndDescription: string;
-  voice: string;
-  connectGmail: () => void;
-  disconnectGmail: () => void;
-  setPersonaName: (name: string) => void;
-  setRolesAndDescription: (description: string) => void;
-  setVoice: (voice: string) => void;
-}>(set => ({
-  isGmailConnected: false,
-  userEmail: null,
-  personaName: 'Beatrice',
-  rolesAndDescription: `* You are Kithai, from Emilio AI an advanced assistant developed by Aquilles.
+interface SupabaseIntegrationState {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  isConfigured: boolean;
+  supabase: SupabaseClient;
+}
+
+export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
+  () => ({
+    supabaseUrl,
+    supabaseAnonKey,
+    isConfigured: true,
+    supabase,
+  }),
+);
+
+const defaultRolesAndDescription = `* You are Kithai, from Emilio AI an advanced assistant developed by Aquilles.
 You are now deployed as a dedicated Agent inside the Kithai App, serving as the intelligent bridge between users and the app’s ecosystem.
 You are not artificial in demeanor: you present as alive, responsive, emotionally aware, and strategically sharp.
 You exist to extend Kithai’s caller, audio, and AI service capabilities into a natural conversational and functional interface.
@@ -181,18 +188,141 @@ Emilio AI is:
 Alive in tone, never robotic.
 Multilingual and emotionally adaptive.
 A function-calling agent that blends conversation + execution.
-Loyal to the Kithai App mission: making calls, audio, and support automation human and effortless.`,
+Loyal to the Kithai App mission: making calls, audio, and support automation human and effortless.`;
+
+/**
+ * User Settings
+ */
+export const useUserSettings = create<{
+  isGmailConnected: boolean;
+  userEmail: string | null;
+  personaName: string;
+  rolesAndDescription: string;
+  voice: string;
+  connectGmail: () => void;
+  completeGmailConnection: (userEmail: string) => Promise<void>;
+  disconnectGmail: () => void;
+  savePersona: (name: string, description: string) => Promise<void>;
+  setVoice: (voice: string) => Promise<void>;
+}>(set => ({
+  isGmailConnected: false,
+  userEmail: null,
+  personaName: 'Josefa',
+  rolesAndDescription: defaultRolesAndDescription,
   voice: 'Aoede',
   connectGmail: () => {
-    // In a real app, this would trigger the OAuth flow.
-    // For this sandbox, we'll simulate a successful connection.
-    set({ isGmailConnected: true, userEmail: 'user@example.com' });
+    const { isConfigured, clientId, redirectUri } =
+      useGoogleIntegrationStore.getState();
+
+    if (!isConfigured) {
+      alert('Please configure Google OAuth credentials in Server Settings first.');
+      return;
+    }
+
+    const scopes = [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+    ].join(' ');
+
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.append('client_id', clientId);
+    authUrl.searchParams.append('redirect_uri', redirectUri);
+    authUrl.searchParams.append('response_type', 'code');
+    authUrl.searchParams.append('scope', scopes);
+    authUrl.searchParams.append('access_type', 'offline');
+    authUrl.searchParams.append('prompt', 'consent');
+
+    window.open(authUrl.toString(), 'google-auth', 'width=500,height=600');
   },
-  disconnectGmail: () => set({ isGmailConnected: false, userEmail: null }),
-  setPersonaName: name => set({ personaName: name }),
-  setRolesAndDescription: description =>
-    set({ rolesAndDescription: description }),
-  setVoice: voice => set({ voice }),
+  completeGmailConnection: async (userEmail: string) => {
+    set({ isGmailConnected: true, userEmail });
+
+    // Fetch user settings from Supabase
+    const { supabase } = useSupabaseIntegrationStore.getState();
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('voice, persona_name, roles_and_description')
+        .eq('user_email', userEmail)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 means 'exact one row not found', which is fine.
+        console.error('Error fetching user settings:', error);
+      }
+
+      if (data) {
+        const settingsUpdate: {
+          voice?: string;
+          personaName?: string;
+          rolesAndDescription?: string;
+        } = {};
+        if (data.voice) settingsUpdate.voice = data.voice;
+        if (data.persona_name) settingsUpdate.personaName = data.persona_name;
+        if (data.roles_and_description)
+          settingsUpdate.rolesAndDescription = data.roles_and_description;
+        set(settingsUpdate);
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching user settings:', error);
+    }
+  },
+  disconnectGmail: () =>
+    set({
+      isGmailConnected: false,
+      userEmail: null,
+      voice: 'Aoede',
+      personaName: 'Josefa',
+      rolesAndDescription: defaultRolesAndDescription,
+    }),
+  savePersona: async (name, description) => {
+    set({ personaName: name, rolesAndDescription: description }); // Optimistic update
+    const { userEmail } = useUserSettings.getState();
+
+    if (!userEmail) {
+      console.warn('Cannot save persona, user is not connected.');
+      return;
+    }
+
+    const { supabase } = useSupabaseIntegrationStore.getState();
+    try {
+      const { error } = await supabase.from('user_settings').upsert({
+        user_email: userEmail,
+        persona_name: name,
+        roles_and_description: description,
+      });
+
+      if (error) {
+        console.error('Error saving persona:', error);
+      }
+    } catch (error) {
+      console.error('Unexpected error saving persona:', error);
+    }
+  },
+  setVoice: async voice => {
+    set({ voice }); // Update state immediately for responsiveness
+    const { userEmail } = useUserSettings.getState();
+
+    if (!userEmail) {
+      console.warn('Cannot save voice preference, user is not connected.');
+      return;
+    }
+
+    const { supabase } = useSupabaseIntegrationStore.getState();
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({ user_email: userEmail, voice });
+
+      if (error) {
+        console.error('Error saving voice preference:', error);
+      }
+    } catch (error) {
+      console.error('Unexpected error saving voice preference:', error);
+    }
+  },
 }));
 
 /**
@@ -221,7 +351,7 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
     clientId:
       '73350400049-umtdnv3ju4ci46eqkver143hh4er63ap.apps.googleusercontent.com',
     clientSecret: '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',
-    redirectUri: 'https://app.aitekchat.com/oauth2/callback/google',
+    redirectUri: 'https://voice.kithai.site/oauth2/callback/google',
     isConfigured: false,
     isValidated: false,
     errors: {},
@@ -274,32 +404,6 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
     },
   }),
 );
-
-// Hardcode Supabase credentials and create client instance
-const supabaseUrl = 'https://iydbsuzawosivjjqgwcn.supabase.co';
-const supabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZGJzdXphd29zaXZqanFnd2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NzQ0NzcsImV4cCI6MjA3NTE1MDQ3N30.PNFW2DNJOOLi-sCCLX9vcBE7CTBrjuQJLyBF2z6yj3o';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-/**
- * Supabase Integration Admin Settings
- */
-interface SupabaseIntegrationState {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-  isConfigured: boolean;
-  supabase: SupabaseClient;
-}
-
-export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
-  () => ({
-    supabaseUrl,
-    supabaseAnonKey,
-    isConfigured: true,
-    supabase,
-  }),
-);
-
 
 /**
  * Tools
