@@ -24,7 +24,7 @@ import { LiveConnectConfig, Modality, LiveServerToolCall } from '@google/genai';
 import { AudioStreamer } from '../../lib/audio-streamer';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
-import { useLogStore, useSettings, useUserSettings, useWhatsAppIntegrationStore } from '@/lib/state';
+import { useLogStore, useSettings, useUserSettings, useWhatsAppIntegrationStore, useAuthStore } from '@/lib/state';
 
 export type UseLiveApiResults = {
   client: GenAILiveClient;
@@ -42,10 +42,10 @@ export type UseLiveApiResults = {
 
 async function handleSendEmail(
   args: any,
-  auth: { isGmailConnected: boolean; accessToken: string | null },
+  auth: { isGoogleConnected: boolean; accessToken: string | null },
 ) {
-  if (!auth.isGmailConnected || !auth.accessToken) {
-    return 'User is not connected to Gmail. Please ask them to connect their account through the settings.';
+  if (!auth.isGoogleConnected || !auth.accessToken) {
+    return 'User is not connected to Google. Please ask them to sign in with their Google account.';
   }
 
   const { recipient, subject, body } = args;
@@ -98,10 +98,10 @@ async function handleSendEmail(
 
 async function handleReadEmails(
   args: any,
-  auth: { isGmailConnected: boolean; accessToken: string | null },
+  auth: { isGoogleConnected: boolean; accessToken: string | null },
 ) {
-  if (!auth.isGmailConnected || !auth.accessToken) {
-    return 'User is not connected to Gmail. Please ask them to connect their account through the settings.';
+  if (!auth.isGoogleConnected || !auth.accessToken) {
+    return 'User is not connected to Google. Please ask them to sign in with their Google account.';
   }
 
   const { count = 5, from, subject, unreadOnly = true } = args;
@@ -179,6 +179,28 @@ async function handleSendWhatsAppMessage(args: any) {
   return await sendMessage(recipient_phone_number, message_body);
 }
 
+async function handleReadWhatsAppChatHistory(args: any) {
+  const { readChatHistory } = useWhatsAppIntegrationStore.getState();
+  const { contact_name_or_phone, message_count } = args;
+
+  if (!contact_name_or_phone) {
+    return 'Missing required contact name or phone number to read chat history.';
+  }
+  
+  return await readChatHistory(contact_name_or_phone, message_count);
+}
+
+async function handleSearchWhatsAppContact(args: any) {
+  const { searchContact } = useWhatsAppIntegrationStore.getState();
+  const { contact_name } = args;
+
+  if (!contact_name) {
+    return 'Missing required contact name to search for.';
+  }
+  
+  return await searchContact(contact_name);
+}
+
 export function useLiveApi({
   apiKey,
 }: {
@@ -252,7 +274,10 @@ export function useLiveApi({
     client.on('audio', onAudio);
 
     const onToolCall = async (toolCall: LiveServerToolCall) => {
-      const { isGmailConnected, accessToken } = useUserSettings.getState();
+      const { session } = useAuthStore.getState();
+      const isGoogleConnected = !!session?.provider_token;
+      const accessToken = session?.provider_token ?? null;
+
       const functionResponses: any[] = [];
 
       for (const fc of toolCall.functionCalls) {
@@ -271,13 +296,13 @@ export function useLiveApi({
         switch (fc.name) {
           case 'send_email':
             resultPromise = handleSendEmail(fc.args, {
-              isGmailConnected,
+              isGoogleConnected,
               accessToken,
             });
             break;
           case 'read_emails':
             resultPromise = handleReadEmails(fc.args, {
-              isGmailConnected,
+              isGoogleConnected,
               accessToken,
             });
             break;
@@ -286,6 +311,12 @@ export function useLiveApi({
             break;
           case 'send_whatsapp_message':
             resultPromise = handleSendWhatsAppMessage(fc.args);
+            break;
+          case 'read_whatsapp_chat_history':
+            resultPromise = handleReadWhatsAppChatHistory(fc.args);
+            break;
+          case 'search_whatsapp_contact':
+            resultPromise = handleSearchWhatsAppContact(fc.args);
             break;
           default:
             resultPromise = Promise.resolve('ok'); // Default for other tools

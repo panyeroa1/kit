@@ -14,7 +14,8 @@ import {
   FunctionResponseScheduling,
   LiveServerToolCall,
 } from '@google/genai';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+import { Session, User } from '@supabase/supabase-js';
 
 export const businessAssistantTools: FunctionCall[] = [
   {
@@ -90,6 +91,42 @@ export const businessAssistantTools: FunctionCall[] = [
     isEnabled: true,
     scheduling: FunctionResponseScheduling.INTERRUPT,
   },
+  {
+    name: 'read_whatsapp_chat_history',
+    description: 'Reads the most recent chat history from a specific contact on WhatsApp.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        contact_name_or_phone: {
+          type: 'STRING',
+          description: 'The name or phone number of the contact whose chat history you want to read.',
+        },
+        message_count: {
+            type: 'NUMBER',
+            description: 'The number of recent messages to retrieve. Defaults to 10.'
+        }
+      },
+      required: ['contact_name_or_phone'],
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
+  {
+    name: 'search_whatsapp_contact',
+    description: 'Searches for a contact in the user\'s WhatsApp contact list.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        contact_name: {
+          type: 'STRING',
+          description: 'The name of the contact to search for.',
+        },
+      },
+      required: ['contact_name'],
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
 ];
 
 export type Template =
@@ -143,11 +180,64 @@ export const useUI = create<{
   showSnackbar: (message: string | null) => set({ snackbarMessage: message }),
 }));
 
-// Hardcode Supabase credentials and create client instance
-const supabaseUrl = 'https://iydbsuzawosivjjqgwcn.supabase.co';
-const supabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZGJzdXphd29zaXZqanFnd2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NzQ0NzcsImV4cCI6MjA3NTE1MDQ3N30.PNFW2DNJOOLi-sCCLX9vcBE7CTBrjuQJLyBF2z6yj3o';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * Auth
+ */
+interface AuthState {
+  session: Session | null;
+  user: User | null;
+  loading: boolean;
+  setSession: (session: Session | null) => void;
+  signInWithGoogle: () => Promise<void>;
+  signInWithPassword: (
+    email,
+    password,
+  ) => Promise<Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>>;
+  signUpWithEmail: (
+    email,
+    password,
+  ) => Promise<Awaited<ReturnType<typeof supabase.auth.signUp>>>;
+  signOut: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>(set => ({
+  session: null,
+  user: null,
+  loading: true,
+  setSession: session => {
+    set({ session, user: session?.user ?? null, loading: false });
+  },
+  signInWithGoogle: async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: [
+          'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/userinfo.profile',
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.send',
+          'https://www.googleapis.com/auth/calendar',
+          'https://www.googleapis.com/auth/drive',
+          'https://www.googleapis.com/auth/spreadsheets',
+        ].join(' '),
+      },
+    });
+    if (error) {
+      console.error('Google sign-in error:', error);
+      useUI.getState().showSnackbar(`Google sign-in error: ${error.message}`);
+    }
+  },
+  signInWithPassword: async (email, password) => {
+    return supabase.auth.signInWithPassword({ email, password });
+  },
+  signUpWithEmail: async (email, password) => {
+    return supabase.auth.signUp({ email, password });
+  },
+  signOut: async () => {
+    await supabase.auth.signOut();
+    set({ session: null, user: null });
+  },
+}));
 
 /**
  * Supabase Integration Admin Settings
@@ -156,15 +246,13 @@ interface SupabaseIntegrationState {
   supabaseUrl: string;
   supabaseAnonKey: string;
   isConfigured: boolean;
-  supabase: SupabaseClient;
 }
 
 export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
   () => ({
-    supabaseUrl,
-    supabaseAnonKey,
+    supabaseUrl: 'https://iydbsuzawosivjjqgwcn.supabase.co',
+    supabaseAnonKey: '******', // Masked for security
     isConfigured: true,
-    supabase,
   }),
 );
 
@@ -234,205 +322,154 @@ Multilingual and emotionally adaptive.
 A function-calling agent that blends conversation + execution.
 Loyal to the Kithai App mission: making calls, audio, and support automation human and effortless.`;
 
+const defaultUserSettings = {
+  personaName: 'Josefa',
+  rolesAndDescription: defaultRolesAndDescription,
+  voice: 'Aoede',
+  memories: [],
+};
+
 /**
  * User Settings
  */
-export const useUserSettings = create(persist<{
-  isGmailConnected: boolean;
-  userEmail: string | null;
-  accessToken: string | null;
-  personaName: string;
-  rolesAndDescription: string;
-  voice: string;
-  memories: string[];
-  connectGmail: () => void;
-  completeGmailConnection: (userEmail: string, accessToken: string) => Promise<void>;
-  disconnectGmail: () => void;
-  loadUserData: (userEmail: string) => Promise<void>;
-  savePersona: (name: string, description: string) => Promise<void>;
-  setVoice: (voice: string) => Promise<void>;
-  addMemory: (memoryText: string) => Promise<void>;
-  getSystemPrompt: () => string;
-}>(
-  (set, get) => ({
-    isGmailConnected: false,
-    userEmail: null,
-    accessToken: null,
-    personaName: 'Josefa',
-    rolesAndDescription: defaultRolesAndDescription,
-    voice: 'Aoede',
-    memories: [],
-    connectGmail: () => {
-      const { isConfigured, clientId, redirectUri } =
-        useGoogleIntegrationStore.getState();
+export const useUserSettings = create(
+  persist<{
+    personaName: string;
+    rolesAndDescription: string;
+    voice: string;
+    memories: string[];
+    loadUserData: (userEmail: string) => Promise<void>;
+    savePersona: (name: string, description: string) => Promise<void>;
+    setVoice: (voice: string) => Promise<void>;
+    addMemory: (memoryText: string) => Promise<void>;
+    getSystemPrompt: () => string;
+    resetToDefaults: () => void;
+  }>(
+    (set, get) => ({
+      ...defaultUserSettings,
+      loadUserData: async (userEmail: string) => {
+        try {
+          // Fetch user settings
+          const { data, error } = await supabase
+            .from('user_settings')
+            .select('voice, persona_name, roles_and_description')
+            .eq('user_email', userEmail)
+            .single();
 
-      if (!isConfigured) {
-        alert('Please configure Google OAuth credentials in Server Settings first.');
-        return;
-      }
+          if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching user settings:', error);
+          } else if (data) {
+            const settingsUpdate: {
+              voice?: string;
+              personaName?: string;
+              rolesAndDescription?: string;
+            } = {};
+            if (data.voice) settingsUpdate.voice = data.voice;
+            if (data.persona_name)
+              settingsUpdate.personaName = data.persona_name;
+            if (data.roles_and_description)
+              settingsUpdate.rolesAndDescription = data.roles_and_description;
+            set(settingsUpdate);
+          }
 
-      if (!redirectUri) {
-        alert('Please set the Redirect URI in Server Settings.');
-        return;
-      }
+          // Fetch memories
+          const { data: memoriesData, error: memoriesError } = await supabase
+            .from('memories')
+            .select('memory_text')
+            .eq('user_email', userEmail)
+            .order('created_at', { ascending: true });
 
-      const scopes = [
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://www.googleapis.com/auth/gmail.readonly',
-        'https://www.googleapis.com/auth/gmail.send',
-      ].join(' ');
-
-      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      authUrl.searchParams.append('client_id', clientId);
-      authUrl.searchParams.append('redirect_uri', redirectUri);
-      authUrl.searchParams.append('response_type', 'code');
-      authUrl.searchParams.append('scope', scopes);
-      authUrl.searchParams.append('access_type', 'offline');
-      authUrl.searchParams.append('prompt', 'consent');
-
-      window.open(authUrl.toString(), 'google-auth', 'width=500,height=600');
-    },
-    completeGmailConnection: async (userEmail: string, accessToken: string) => {
-      set({ isGmailConnected: true, userEmail, accessToken });
-      await get().loadUserData(userEmail);
-    },
-    loadUserData: async (userEmail: string) => {
-      const { supabase } = useSupabaseIntegrationStore.getState();
-      try {
-        // Fetch user settings
-        const { data, error } = await supabase
-          .from('user_settings')
-          .select('voice, persona_name, roles_and_description')
-          .eq('user_email', userEmail)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching user settings:', error);
-        } else if (data) {
-          const settingsUpdate: {
-            voice?: string;
-            personaName?: string;
-            rolesAndDescription?: string;
-          } = {};
-          if (data.voice) settingsUpdate.voice = data.voice;
-          if (data.persona_name) settingsUpdate.personaName = data.persona_name;
-          if (data.roles_and_description)
-            settingsUpdate.rolesAndDescription = data.roles_and_description;
-          set(settingsUpdate);
+          if (memoriesError) {
+            console.error('Error fetching memories:', memoriesError);
+          } else if (memoriesData) {
+            set({ memories: memoriesData.map(m => m.memory_text) });
+          }
+        } catch (error) {
+          console.error('Unexpected error fetching user data:', error);
         }
-        
-        // Fetch memories
-        const { data: memoriesData, error: memoriesError } = await supabase
-          .from('memories')
-          .select('memory_text')
-          .eq('user_email', userEmail)
-          .order('created_at', { ascending: true });
-
-        if (memoriesError) {
-          console.error('Error fetching memories:', memoriesError);
-        } else if (memoriesData) {
-          set({ memories: memoriesData.map(m => m.memory_text) });
+      },
+      resetToDefaults: () => set(defaultUserSettings),
+      savePersona: async (name, description) => {
+        set({ personaName: name, rolesAndDescription: description }); // Optimistic update
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          console.warn('Cannot save persona, user is not connected.');
+          return;
         }
-      } catch (error) {
-        console.error('Unexpected error fetching user data:', error);
-      }
-    },
-    disconnectGmail: () =>
-      set({
-        isGmailConnected: false,
-        userEmail: null,
-        accessToken: null,
-        voice: 'Aoede',
-        personaName: 'Josefa',
-        rolesAndDescription: defaultRolesAndDescription,
-        memories: [],
-      }),
-    savePersona: async (name, description) => {
-      set({ personaName: name, rolesAndDescription: description }); // Optimistic update
-      const { userEmail } = get();
 
-      if (!userEmail) {
-        console.warn('Cannot save persona, user is not connected.');
-        return;
-      }
+        try {
+          const { error } = await supabase.from('user_settings').upsert({
+            user_email: user.email,
+            persona_name: name,
+            roles_and_description: description,
+          });
 
-      const { supabase } = useSupabaseIntegrationStore.getState();
-      try {
-        const { error } = await supabase.from('user_settings').upsert({
-          user_email: userEmail,
-          persona_name: name,
-          roles_and_description: description,
-        });
-
-        if (error) {
-          console.error('Error saving persona:', error);
+          if (error) {
+            console.error('Error saving persona:', error);
+          }
+        } catch (error) {
+          console.error('Unexpected error saving persona:', error);
         }
-      } catch (error) {
-        console.error('Unexpected error saving persona:', error);
-      }
-    },
-    setVoice: async voice => {
-      set({ voice }); // Update state immediately for responsiveness
-      const { userEmail } = get();
+      },
+      setVoice: async voice => {
+        set({ voice }); // Update state immediately for responsiveness
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          console.warn('Cannot save voice preference, user is not connected.');
+          return;
+        }
 
-      if (!userEmail) {
-        console.warn('Cannot save voice preference, user is not connected.');
-        return;
-      }
+        try {
+          const { error } = await supabase
+            .from('user_settings')
+            .upsert({ user_email: user.email, voice });
 
-      const { supabase } = useSupabaseIntegrationStore.getState();
-      try {
+          if (error) {
+            console.error('Error saving voice preference:', error);
+          }
+        } catch (error) {
+          console.error('Unexpected error saving voice preference:', error);
+        }
+      },
+      addMemory: async (memoryText: string) => {
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          console.warn('Cannot save memory, user is not connected.');
+          useUI.getState().showSnackbar('Error: User not connected.');
+          return;
+        }
         const { error } = await supabase
-          .from('user_settings')
-          .upsert({ user_email: userEmail, voice });
+          .from('memories')
+          .insert({ user_email: user.email, memory_text: memoryText });
 
         if (error) {
-          console.error('Error saving voice preference:', error);
+          console.error('Error saving memory:', error);
+          useUI.getState().showSnackbar('Error saving memory.');
+        } else {
+          set(state => ({ memories: [...state.memories, memoryText] }));
+          useUI.getState().showSnackbar('Memory saved successfully!');
         }
-      } catch (error) {
-        console.error('Unexpected error saving voice preference:', error);
-      }
-    },
-    addMemory: async (memoryText: string) => {
-      const { userEmail } = get();
-      if (!userEmail) {
-        console.warn('Cannot save memory, user is not connected.');
-        useUI.getState().showSnackbar('Error: User not connected.');
-        return;
-      }
-      const { supabase } = useSupabaseIntegrationStore.getState();
-      const { error } = await supabase
-        .from('memories')
-        .insert({ user_email: userEmail, memory_text: memoryText });
-
-      if (error) {
-        console.error('Error saving memory:', error);
-        useUI.getState().showSnackbar('Error saving memory.');
-      } else {
-        set(state => ({ memories: [...state.memories, memoryText] }));
-        useUI.getState().showSnackbar('Memory saved successfully!');
-      }
-    },
-    getSystemPrompt: () => {
-      const { rolesAndDescription, memories } = get();
-      if (memories.length === 0) {
-        return rolesAndDescription;
-      }
-      const memorySection = `
+      },
+      getSystemPrompt: () => {
+        const { rolesAndDescription, memories } = get();
+        if (memories.length === 0) {
+          return rolesAndDescription;
+        }
+        const memorySection = `
 ---
 IMPORTANT USER-SPECIFIC MEMORIES:
 You have been asked to remember the following things about this specific user. Use this information to personalize your conversation and actions.
 ${memories.map(m => `- ${m}`).join('\n')}
 ---
 `;
-      return rolesAndDescription + memorySection;
+        return rolesAndDescription + memorySection;
+      },
+    }),
+    {
+      name: 'user-settings-storage', // unique name for localStorage key
     },
-  }),
-  {
-    name: 'user-settings-storage', // unique name for localStorage key
-  }
-));
+  ),
+);
 
 /**
  * Google Integration Admin Settings
@@ -453,53 +490,55 @@ interface GoogleIntegrationState {
   saveCredentials: () => void;
 }
 
-export const useGoogleIntegrationStore = create(persist<GoogleIntegrationState>(
-  (set, get) => ({
-    clientId:
-      '73350400049-lak1uj65sti1dknrrfh92t43lvti83da.apps.googleusercontent.com',
-    clientSecret: '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',
-    redirectUri: 'https://voice.kithai.site',
-    isConfigured: true,
-    isValidated: false,
-    errors: {},
-    setClientId: id => set({ clientId: id, isValidated: false, errors: {} }),
-    setClientSecret: secret =>
-      set({ clientSecret: secret, isValidated: false, errors: {} }),
-    validateCredentials: () => {
-      const { clientId, clientSecret } = get();
-      const newErrors: GoogleIntegrationState['errors'] = {};
-      let isValid = true;
+export const useGoogleIntegrationStore = create(
+  persist<GoogleIntegrationState>(
+    (set, get) => ({
+      clientId:
+        '73350400049-lak1uj65sti1dknrrfh92t43lvti83da.apps.googleusercontent.com',
+      clientSecret: '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',
+      redirectUri: 'https://voice.kithai.site',
+      isConfigured: true,
+      isValidated: false,
+      errors: {},
+      setClientId: id => set({ clientId: id, isValidated: false, errors: {} }),
+      setClientSecret: secret =>
+        set({ clientSecret: secret, isValidated: false, errors: {} }),
+      validateCredentials: () => {
+        const { clientId, clientSecret } = get();
+        const newErrors: GoogleIntegrationState['errors'] = {};
+        let isValid = true;
 
-      if (!clientId) {
-        newErrors.clientId = 'Client ID is required.';
-        isValid = false;
-      } else if (!clientId.endsWith('.apps.googleusercontent.com')) {
-        newErrors.clientId =
-          'Client ID must end with .apps.googleusercontent.com';
-        isValid = false;
-      }
+        if (!clientId) {
+          newErrors.clientId = 'Client ID is required.';
+          isValid = false;
+        } else if (!clientId.endsWith('.apps.googleusercontent.com')) {
+          newErrors.clientId =
+            'Client ID must end with .apps.googleusercontent.com';
+          isValid = false;
+        }
 
-      if (!clientSecret) {
-        newErrors.clientSecret = 'Client Secret cannot be empty.';
-        isValid = false;
-      }
+        if (!clientSecret) {
+          newErrors.clientSecret = 'Client Secret cannot be empty.';
+          isValid = false;
+        }
 
-      set({ errors: newErrors, isValidated: isValid });
-      return isValid;
+        set({ errors: newErrors, isValidated: isValid });
+        return isValid;
+      },
+      saveCredentials: () => {
+        const isValid = get().validateCredentials();
+        if (isValid) {
+          // In a real app, this would be an API call to a secure backend.
+          console.log('Saving credentials (simulated)...');
+          set({ isConfigured: true });
+        }
+      },
+    }),
+    {
+      name: 'google-integration-storage',
     },
-    saveCredentials: () => {
-      const isValid = get().validateCredentials();
-      if (isValid) {
-        // In a real app, this would be an API call to a secure backend.
-        console.log('Saving credentials (simulated)...');
-        set({ isConfigured: true });
-      }
-    },
-  }),
-  {
-    name: 'google-integration-storage',
-  }
-));
+  ),
+);
 
 /**
  * WhatsApp Integration Admin Settings
@@ -525,6 +564,11 @@ interface WhatsAppIntegrationState {
     recipientPhoneNumber: string,
     message: string,
   ) => Promise<string>;
+  readChatHistory: (
+    contact_name_or_phone: string,
+    message_count?: number,
+  ) => Promise<string>;
+  searchContact: (contact_name: string) => Promise<string>;
   // User-specific settings
   isUserConnected: boolean;
   userPhoneNumber: string | null;
@@ -538,7 +582,8 @@ export const useWhatsAppIntegrationStore = create(
       // Admin server settings
       phoneNumberId: '169412612933088',
       wabaId: '235412396315733',
-      accessToken: 'EAANrPCBVeQgBPvZBX0XDSpqf4xDQ2mZBAviSZBJuDg1sI2zPSpA3lvkCUXynAUXuYmqbNXjsLlPA8ZBCUl2mqN4KsZCUlh11EIZAZAOksyDjbJTP2UYxWVaNZCUo8BAbUpZBfqNWr05S0HBVZAE79LVIlRnUx9QXmIY5cPmTO7yRRtlYH7FJxTT13oa81qwg9Clb3RnBZCaKQC0yeeWZAHmnsrUABogZD',
+      accessToken:
+        'EAANrPCBVeQgBPvZBX0XDSpqf4xDQ2mZBAviSZBJuDg1sI2zPSpA3lvkCUXynAUXuYmqbNXjsLlPA8ZBCUl2mqN4KsZCUlh11EIZAZAOksyDjbJTP2UYxWVaNZCUo8BAbUpZBfqNWr05S0HBVZAE79LVIlRnUx9QXmIY5cPmTO7yRRtlYH7FJxTT13oa81qwg9Clb3RnBZCaKQC0yeeWZAHmnsrUABogZD',
       isConfigured: true,
       isValidated: false,
       errors: {},
@@ -617,6 +662,32 @@ export const useWhatsAppIntegrationStore = create(
           }`;
         }
       },
+      readChatHistory: async (
+        contact_name_or_phone: string,
+        message_count = 10,
+      ) => {
+        const { isUserConnected } = get();
+        if (!isUserConnected) {
+          return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
+        }
+        // This is a mocked implementation
+        console.log(
+          `Reading last ${message_count} messages from ${contact_name_or_phone}`,
+        );
+        return `(Mocked Response) Last 3 messages from ${contact_name_or_phone}:\n- Hey, are you free later?\n- Nevermind, something came up.\n- Talk to you tomorrow!`;
+      },
+      searchContact: async (contact_name: string) => {
+        const { isUserConnected } = get();
+        if (!isUserConnected) {
+          return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
+        }
+        // This is a mocked implementation
+        console.log(`Searching for contact: ${contact_name}`);
+        if (contact_name.toLowerCase().includes('jane')) {
+          return `Found contact: Jane Doe (+1-555-555-5555).`;
+        }
+        return `No contact found matching the name "${contact_name}".`;
+      },
       // User-specific settings
       isUserConnected: false,
       userPhoneNumber: null,
@@ -624,36 +695,36 @@ export const useWhatsAppIntegrationStore = create(
         // In a real app, you'd have an API call here to verify and connect.
         // For now, we'll just update the state.
         set({ isUserConnected: true, userPhoneNumber: phoneNumber });
-        const { userEmail } = useUserSettings.getState();
-        if (userEmail) {
+        const { user } = useAuthStore.getState();
+        if (user?.email) {
           // Persist connection to Supabase
-          const { supabase } = useSupabaseIntegrationStore.getState();
           supabase
             .from('user_settings')
             .upsert({
-              user_email: userEmail,
+              user_email: user.email,
               whatsapp_phone_number: phoneNumber,
               is_whatsapp_connected: true,
             })
             .then(({ error }) => {
-              if (error) console.error('Error saving WhatsApp connection:', error);
+              if (error)
+                console.error('Error saving WhatsApp connection:', error);
             });
         }
       },
       disconnectUser: () => {
         set({ isUserConnected: false, userPhoneNumber: null });
-        const { userEmail } = useUserSettings.getState();
-        if (userEmail) {
+        const { user } = useAuthStore.getState();
+        if (user?.email) {
           // Update Supabase
-          const { supabase } = useSupabaseIntegrationStore.getState();
           supabase
             .from('user_settings')
             .upsert({
-              user_email: userEmail,
+              user_email: user.email,
               is_whatsapp_connected: false,
             })
             .then(({ error }) => {
-              if (error) console.error('Error updating WhatsApp connection:', error);
+              if (error)
+                console.error('Error updating WhatsApp connection:', error);
             });
         }
       },
@@ -661,7 +732,7 @@ export const useWhatsAppIntegrationStore = create(
     {
       name: 'whatsapp-integration-storage',
       // Only persist admin settings, not user connection status
-      partialize: (state) => ({
+      partialize: state => ({
         phoneNumberId: state.phoneNumberId,
         wabaId: state.wabaId,
         accessToken: state.accessToken,
@@ -670,7 +741,6 @@ export const useWhatsAppIntegrationStore = create(
     },
   ),
 );
-
 
 /**
  * Tools
@@ -797,20 +867,24 @@ export const useLogStore = create<{
 
       // Save final turn to Supabase
       if (lastTurn.isFinal) {
-        const { userEmail } = useUserSettings.getState();
-        if (userEmail) {
-          const { supabase } = useSupabaseIntegrationStore.getState();
+        const { user } = useAuthStore.getState();
+        if (user?.email) {
           // This is fire-and-forget to not block the UI
-          supabase.from('conversation_history').insert({
-            user_email: userEmail,
-            turn_data: { // Storing the whole turn object
-              role: lastTurn.role,
-              text: lastTurn.text,
-              timestamp: lastTurn.timestamp,
-            }
-          }).then(({ error }) => {
-            if (error) console.error('Error saving conversation turn:', error);
-          });
+          supabase
+            .from('conversation_history')
+            .insert({
+              user_email: user.email,
+              turn_data: {
+                // Storing the whole turn object
+                role: lastTurn.role,
+                text: lastTurn.text,
+                timestamp: lastTurn.timestamp,
+              },
+            })
+            .then(({ error }) => {
+              if (error)
+                console.error('Error saving conversation turn:', error);
+            });
         }
       }
 

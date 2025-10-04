@@ -16,6 +16,7 @@ import {
   useUserSettings,
   businessAssistantTools,
   FunctionCall,
+  useAuthStore,
 } from '@/lib/state';
 import { coreTools } from '@/lib/tools/core';
 
@@ -56,14 +57,16 @@ const renderContent = (text: string) => {
 
 export default function StreamingConsole() {
   const { client, setConfig } = useLiveAPIContext();
-  const { voice, isGmailConnected, getSystemPrompt } = useUserSettings();
+  const { voice, getSystemPrompt } = useUserSettings();
+  const { session } = useAuthStore();
+  const isGoogleConnected = !!session?.provider_token;
   const { tools: templateTools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Set the configuration for the Live API
   useEffect(() => {
-    const gmailTools: FunctionCall[] = isGmailConnected
+    const gmailTools: FunctionCall[] = isGoogleConnected
       ? businessAssistantTools
       : [];
 
@@ -107,7 +110,7 @@ export default function StreamingConsole() {
     };
 
     setConfig(config);
-  }, [setConfig, getSystemPrompt, voice, templateTools, isGmailConnected]);
+  }, [setConfig, getSystemPrompt, voice, templateTools, isGoogleConnected]);
 
   useEffect(() => {
     const { addTurn, updateLastTurn } = useLogStore.getState();

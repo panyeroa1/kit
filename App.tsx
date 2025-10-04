@@ -27,17 +27,17 @@ import cn from 'classnames';
 
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import Auth from './components/Auth';
 import { LiveAPIProvider } from './contexts/LiveAPIContext';
-import { useUI, useUserSettings, useGoogleIntegrationStore } from './lib/state';
+import { useUI, useUserSettings, useAuthStore } from './lib/state';
 import Snackbar from './components/Snackbar';
 import WhatsAppModal from './components/WhatsAppModal';
+import { supabase } from './lib/supabase';
 
 // Fix: Use process.env.API_KEY per coding guidelines.
 const API_KEY = process.env.API_KEY as string;
 if (typeof API_KEY !== 'string') {
-  throw new Error(
-    'Missing required environment variable: API_KEY'
-  );
+  throw new Error('Missing required environment variable: API_KEY');
 }
 
 /**
@@ -46,116 +46,33 @@ if (typeof API_KEY !== 'string') {
  */
 function App() {
   const { isVoiceCallActive, isWhatsAppModalOpen } = useUI();
+  const { session, loading, setSession } = useAuthStore();
+  const { loadUserData, resetToDefaults } = useUserSettings();
 
-  // Listener for the main window to receive auth confirmation from the popup.
   useEffect(() => {
-    const handleAuthMessage = (event: MessageEvent) => {
-      // Security: Check event origin in a production app
-      if (event.origin !== window.location.origin) {
-        return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user?.email) {
+        loadUserData(session.user.email);
       }
+    });
 
-      if (
-        event.data?.type === 'google-auth-success' &&
-        event.data?.payload?.userEmail &&
-        event.data?.payload?.accessToken
-      ) {
-        useUserSettings
-          .getState()
-          .completeGmailConnection(event.data.payload.userEmail, event.data.payload.accessToken);
-      } else if (event.data?.type === 'google-auth-error') {
-        console.error('Google Auth Error:', event.data.error);
-        alert(`Google Authentication Failed: ${event.data.error}`);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user?.email) {
+        loadUserData(session.user.email);
+      } else {
+        // User logged out, reset settings
+        resetToDefaults();
       }
-    };
+    });
 
-    window.addEventListener('message', handleAuthMessage);
+    return () => subscription.unsubscribe();
+  }, [setSession, loadUserData, resetToDefaults]);
 
-    return () => {
-      window.removeEventListener('message', handleAuthMessage);
-    };
-  }, []);
-
-  // Effect to handle the OAuth callback logic when the app is loaded in the popup.
-  useEffect(() => {
-    const handleOAuthCallback = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-
-      // Only proceed if we're in a popup and have an authorization code.
-      if (window.opener && code) {
-        try {
-          const { clientId, clientSecret, redirectUri } =
-            useGoogleIntegrationStore.getState();
-
-          // Exchange authorization code for access token.
-          const tokenResponse = await fetch(
-            'https://oauth2.googleapis.com/token',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code,
-                client_id: clientId,
-                client_secret: clientSecret,
-                redirect_uri: redirectUri,
-                grant_type: 'authorization_code',
-              }),
-            },
-          );
-
-          const tokenData = await tokenResponse.json();
-          if (!tokenResponse.ok) {
-            throw new Error(
-              tokenData.error_description || 'Failed to exchange token.',
-            );
-          }
-          
-          const accessToken = tokenData.access_token;
-
-          // Use access token to get user info.
-          const userInfoResponse = await fetch(
-            'https://www.googleapis.com/oauth2/v3/userinfo',
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            },
-          );
-
-          const userInfo = await userInfoResponse.json();
-          if (!userInfoResponse.ok) {
-            throw new Error(
-              userInfo.error_description || 'Failed to fetch user info.',
-            );
-          }
-
-          // Send success message with user email and token to the main window.
-          window.opener.postMessage(
-            {
-              type: 'google-auth-success',
-              payload: { userEmail: userInfo.email, accessToken },
-            },
-            window.location.origin,
-          );
-        } catch (error) {
-          console.error('OAuth callback error:', error);
-          // Send error message to the main window.
-          window.opener.postMessage(
-            { type: 'google-auth-error', error: (error as Error).message },
-            window.location.origin,
-          );
-        } finally {
-          // Close the popup window.
-          window.close();
-        }
-      }
-    };
-
-    handleOAuthCallback();
-  }, []);
-
-  // If the app is loaded in the auth popup, render a loading message instead of the full UI.
-  const params = new URLSearchParams(window.location.search);
-  if (window.opener && params.has('code')) {
+  if (loading) {
     return (
       <div
         style={{
@@ -168,9 +85,13 @@ function App() {
           fontFamily: 'sans-serif',
         }}
       >
-        <p>Authenticating, please wait...</p>
+        <p>Loading...</p>
       </div>
     );
+  }
+
+  if (!session) {
+    return <Auth />;
   }
 
   return (
