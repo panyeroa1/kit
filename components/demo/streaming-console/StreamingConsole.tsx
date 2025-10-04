@@ -72,13 +72,7 @@ export default function StreamingConsole() {
       },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
-      systemInstruction: {
-        parts: [
-          {
-            text: rolesAndDescription,
-          },
-        ],
-      },
+      systemInstruction: rolesAndDescription,
       tools: [{ googleSearch: {} }],
     };
 

@@ -70,17 +70,25 @@ const VoiceCall = () => {
   useEffect(() => {
     let stream: MediaStream | null = null;
     const setupCamera = async () => {
-      if (isCameraOn && videoRef.current) {
+      if (isCameraOn) {
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          videoRef.current.srcObject = stream;
+          // If component unmounts during await, videoRef.current will be null.
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          } else {
+            // Stop the stream if the ref is gone, to release the camera.
+            stream?.getTracks().forEach(track => track.stop());
+          }
         } catch (err) {
           console.error('Error accessing camera:', err);
           setIsCameraOn(false); // Turn off toggle if permission is denied
         }
       } else {
         if (videoRef.current?.srcObject) {
-          const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+          const tracks = (
+            videoRef.current.srcObject as MediaStream
+          ).getTracks();
           tracks.forEach(track => track.stop());
           videoRef.current.srcObject = null;
         }
@@ -90,9 +98,7 @@ const VoiceCall = () => {
     setupCamera();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      stream?.getTracks().forEach(track => track.stop());
     };
   }, [isCameraOn]);
 
@@ -109,13 +115,17 @@ const VoiceCall = () => {
     setIsCameraOn(!isCameraOn);
   };
 
-  // Add a pulsing glow effect based on user's voice volume
   const orbStyle = {
-    boxShadow: `0 0 ${userVolume * 70}px rgba(255, 255, 255, ${Math.min(
-      0.5,
+    boxShadow: `0 0 ${userVolume * 70}px rgba(100, 255, 218, ${Math.min(
+      0.6,
       userVolume * 15,
     )})`,
   };
+
+  // Define thresholds for speaking state
+  const isUserSpeaking = userVolume > 0.01;
+  const isAgentSpeaking = volume > 0.01;
+  const isIdle = !isUserSpeaking && !isAgentSpeaking;
 
   return (
     <div className="voice-call-overlay">
@@ -147,13 +157,17 @@ const VoiceCall = () => {
               />
             )}
             <div
-              className="voice-call-orb-effect user-effect"
-              style={{ opacity: Math.min(1, userVolume * 15) }}
-            ></div>
+              className="voice-call-orb-effect standby-effect"
+              style={{ opacity: isIdle ? 1 : 0 }}
+            />
             <div
-              className="voice-call-orb-effect agent-effect"
-              style={{ opacity: Math.min(1, volume * 10) }}
-            ></div>
+              className="voice-call-orb-effect user-smoke-effect"
+              style={{ opacity: Math.min(1, userVolume * 20) }}
+            />
+            <div
+              className="voice-call-orb-effect agent-smoke-effect"
+              style={{ opacity: Math.min(1, volume * 15) }}
+            />
           </div>
         </div>
       </main>

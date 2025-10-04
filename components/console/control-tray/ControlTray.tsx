@@ -171,6 +171,7 @@ function ControlTray() {
       audioRecorder.stop();
     }
     return () => {
+      audioRecorder.stop();
       audioRecorder.off('data', onData);
     };
   }, [connected, client, muted, audioRecorder, isVoiceCallActive]);
@@ -214,9 +215,7 @@ function ControlTray() {
         model: 'gemini-2.5-flash',
         contents: contents,
         config: {
-          systemInstruction: {
-            parts: [{ text: TEXT_CHAT_SYSTEM_INSTRUCTION }],
-          },
+          systemInstruction: TEXT_CHAT_SYSTEM_INSTRUCTION,
           tools: [{ googleSearch: {} }],
         },
       });

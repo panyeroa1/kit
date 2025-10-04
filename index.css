@@ -1402,37 +1402,13 @@ form button:first-of-type {
   pointer-events: none;
 }
 
-.user-effect {
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.7) 0%,
-    rgba(255, 255, 255, 0) 60%
-  );
-  animation: cloudy-pulse 5s infinite ease-in-out;
-}
-
-@keyframes cloudy-pulse {
-  0% {
-    transform: scale(0.9);
-    filter: blur(5px);
-  }
-  50% {
-    transform: scale(1.1);
-    filter: blur(10px);
-  }
-  100% {
-    transform: scale(0.9);
-    filter: blur(5px);
-  }
-}
-
-.agent-effect {
+.standby-effect {
   background: linear-gradient(-45deg, #e3d7c9, #a98c7b, #c46954, #f5f5f5);
   background-size: 400% 400%;
-  animation: pluto-swirl 12s ease infinite;
+  animation: standby-swirl 25s ease infinite;
 }
 
-@keyframes pluto-swirl {
+@keyframes standby-swirl {
   0% {
     background-position: 0% 50%;
   }
@@ -1443,6 +1419,55 @@ form button:first-of-type {
     background-position: 0% 50%;
   }
 }
+
+.user-smoke-effect,
+.agent-smoke-effect {
+  mix-blend-mode: screen;
+}
+
+.user-smoke-effect::before, .user-smoke-effect::after,
+.agent-smoke-effect::before, .agent-smoke-effect::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background-size: 200% 200%;
+  animation: smoke-swirl 20s linear infinite;
+  will-change: transform, background-position;
+}
+
+/* User Smoke (Green) */
+.user-smoke-effect::before {
+  background-image: radial-gradient(circle at 30% 30%, rgba(100, 255, 218, 0.4), transparent 50%),
+                    radial-gradient(circle at 70% 60%, rgba(46, 204, 113, 0.3), transparent 60%);
+  animation-direction: alternate;
+}
+.user-smoke-effect::after {
+  background-image: radial-gradient(circle at 60% 20%, rgba(100, 255, 218, 0.2), transparent 40%),
+                    radial-gradient(circle at 20% 80%, rgba(46, 204, 113, 0.4), transparent 50%);
+  animation-duration: 25s;
+}
+
+/* Agent Smoke (White/Rumble) */
+.agent-smoke-effect::before {
+  background-image: radial-gradient(circle at 25% 75%, rgba(255, 255, 255, 0.3), transparent 50%),
+                    radial-gradient(circle at 75% 25%, rgba(224, 224, 224, 0.25), transparent 60%);
+  animation-duration: 30s;
+}
+.agent-smoke-effect::after {
+   background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15), transparent 40%),
+                    radial-gradient(circle at 80% 80%, rgba(200, 200, 200, 0.3), transparent 50%);
+  animation-duration: 22s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes smoke-swirl {
+  0% { transform: rotate(0deg) scale(1.1); background-position: 0% 50%; }
+  50% { transform: rotate(180deg) scale(1.0); background-position: 100% 50%; }
+  100% { transform: rotate(360deg) scale(1.1); background-position: 0% 50%; }
+}
+
 
 .voice-call-video-preview {
   width: 100%;
