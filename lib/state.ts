@@ -356,7 +356,7 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
     clientId:
       '73350400049-umtdnv3ju4ci46eqkver143hh4er63ap.apps.googleusercontent.com',
     clientSecret: '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',
-    redirectUri: 'https://voice.kithai.site',
+    redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
     isConfigured: false,
     isValidated: false,
     errors: {},
