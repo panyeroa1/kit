@@ -27,7 +27,7 @@ export const DEFAULT_LIVE_API_MODEL =
 export const DEFAULT_VOICE = 'Aoede';
 
 export const AVAILABLE_VOICES_MAP: { name: string; value: string }[] = [
-  { name: 'Beaterice', value: 'Aoede' },
+  { name: 'Beatrice', value: 'Aoede' },
   { name: 'Jose Rizal', value: 'Zephyr' },
   { name: 'Andres Bonifacio', value: 'Puck' },
   { name: 'Emilio Aguinaldo', value: 'Charon' },

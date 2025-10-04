@@ -109,6 +109,14 @@ const VoiceCall = () => {
     setIsCameraOn(!isCameraOn);
   };
 
+  // Add a pulsing glow effect based on user's voice volume
+  const orbStyle = {
+    boxShadow: `0 0 ${userVolume * 70}px rgba(255, 255, 255, ${Math.min(
+      0.5,
+      userVolume * 15,
+    )})`,
+  };
+
   return (
     <div className="voice-call-overlay">
       <header className="voice-call-header">
@@ -128,7 +136,7 @@ const VoiceCall = () => {
 
       <main className="voice-call-main">
         <div className="voice-call-orb-container">
-          <div className="voice-call-orb">
+          <div className="voice-call-orb" style={orbStyle}>
             {isCameraOn && (
               <video
                 ref={videoRef}

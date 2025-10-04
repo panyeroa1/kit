@@ -230,83 +230,14 @@ export default function Sidebar() {
               <div className="sidebar-section settings-card">
                 <h4 className="sidebar-section-title">Supabase Credentials</h4>
                 <p className="description-text">
-                  Configure credentials from your Supabase project dashboard.
+                  Supabase credentials have been pre-configured for this
+                  application.
                 </p>
-                <fieldset
-                  disabled={connected || supabaseIntegration.isConfigured}
-                >
-                  <label>
-                    Supabase URL
-                    <input
-                      type="text"
-                      placeholder="https://<project-ref>.supabase.co"
-                      value={supabaseIntegration.supabaseUrl}
-                      onChange={e =>
-                        supabaseIntegration.setSupabaseUrl(e.target.value)
-                      }
-                      aria-invalid={!!supabaseIntegration.errors.supabaseUrl}
-                    />
-                    {supabaseIntegration.errors.supabaseUrl && (
-                      <p className="validation-error">
-                        {supabaseIntegration.errors.supabaseUrl}
-                      </p>
-                    )}
-                  </label>
-                  <label>
-                    Supabase Anon Key
-                    <input
-                      type="password"
-                      placeholder="Enter your Supabase anonymous key"
-                      value={supabaseIntegration.supabaseAnonKey}
-                      onChange={e =>
-                        supabaseIntegration.setSupabaseAnonKey(e.target.value)
-                      }
-                      aria-invalid={
-                        !!supabaseIntegration.errors.supabaseAnonKey
-                      }
-                    />
-                    {supabaseIntegration.errors.supabaseAnonKey && (
-                      <p className="validation-error">
-                        {supabaseIntegration.errors.supabaseAnonKey}
-                      </p>
-                    )}
-                  </label>
-                </fieldset>
                 <div className="credential-actions">
-                  {supabaseIntegration.isConfigured ? (
-                    <div className="status-indicator configured">
-                      <span className="icon">check_circle</span> Correctly
-                      Configured
-                    </div>
-                  ) : (
-                    <>
-                      {supabaseIntegration.isValidated &&
-                        !Object.keys(supabaseIntegration.errors).length && (
-                          <p className="validation-success">
-                            <span className="icon">check</span> All good. You
-                            can Save.
-                          </p>
-                        )}
-                      <div className="action-buttons">
-                        <button
-                          className="secondary-button"
-                          onClick={supabaseIntegration.validateCredentials}
-                          disabled={connected}
-                        >
-                          Check
-                        </button>
-                        <button
-                          className="gradient-button"
-                          onClick={supabaseIntegration.saveCredentials}
-                          disabled={
-                            !supabaseIntegration.isValidated || connected
-                          }
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <div className="status-indicator configured">
+                    <span className="icon">check_circle</span> Correctly
+                    Configured
+                  </div>
                 </div>
               </div>
             </div>

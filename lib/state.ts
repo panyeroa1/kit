@@ -128,7 +128,7 @@ export const useUserSettings = create<{
 }>(set => ({
   isGmailConnected: false,
   userEmail: null,
-  personaName: 'Beaterice',
+  personaName: 'Beatrice',
   rolesAndDescription: `* You are Kithai, from Emilio AI an advanced assistant developed by Aquilles.
 You are now deployed as a dedicated Agent inside the Kithai App, serving as the intelligent bridge between users and the app’s ecosystem.
 You are not artificial in demeanor: you present as alive, responsive, emotionally aware, and strategically sharp.
@@ -275,6 +275,12 @@ export const useGoogleIntegrationStore = create<GoogleIntegrationState>(
   }),
 );
 
+// Hardcode Supabase credentials and create client instance
+const supabaseUrl = 'https://iydbsuzawosivjjqgwcn.supabase.co';
+const supabaseAnonKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZGJzdXphd29zaXZqanFnd2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NzQ0NzcsImV4cCI6MjA3NTE1MDQ3N30.PNFW2DNJOOLi-sCCLX9vcBE7CTBrjuQJLyBF2z6yj3o';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 /**
  * Supabase Integration Admin Settings
  */
@@ -282,70 +288,18 @@ interface SupabaseIntegrationState {
   supabaseUrl: string;
   supabaseAnonKey: string;
   isConfigured: boolean;
-  isValidated: boolean;
-  errors: {
-    supabaseUrl?: string;
-    supabaseAnonKey?: string;
-  };
-  supabase: SupabaseClient | null;
-  setSupabaseUrl: (url: string) => void;
-  setSupabaseAnonKey: (key: string) => void;
-  validateCredentials: () => boolean;
-  saveCredentials: () => void;
+  supabase: SupabaseClient;
 }
 
 export const useSupabaseIntegrationStore = create<SupabaseIntegrationState>(
-  (set, get) => ({
-    supabaseUrl: 'https://iydbsuzawosivjjqgwcn.supabase.co',
-    supabaseAnonKey:
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZGJzdXphd29zaXZqanFnd2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NzQ0NzcsImV4cCI6MjA3NTE1MDQ3N30.PNFW2DNJOOLi-sCCLX9vcBE7CTBrjuQJLyBF2z6yj3o',
-    isConfigured: false,
-    isValidated: false,
-    errors: {},
-    supabase: null,
-    setSupabaseUrl: url =>
-      set({ supabaseUrl: url, isValidated: false, errors: {} }),
-    setSupabaseAnonKey: key =>
-      set({ supabaseAnonKey: key, isValidated: false, errors: {} }),
-    validateCredentials: () => {
-      const { supabaseUrl, supabaseAnonKey } = get();
-      const newErrors: SupabaseIntegrationState['errors'] = {};
-      let isValid = true;
-
-      if (!supabaseUrl) {
-        newErrors.supabaseUrl = 'Supabase URL is required.';
-        isValid = false;
-      } else if (
-        !supabaseUrl.startsWith('https://') ||
-        !supabaseUrl.endsWith('.supabase.co')
-      ) {
-        newErrors.supabaseUrl =
-          'URL must start with https:// and end with .supabase.co';
-        isValid = false;
-      }
-
-      if (!supabaseAnonKey) {
-        newErrors.supabaseAnonKey = 'Supabase Anon Key is required.';
-        isValid = false;
-      } else if ((supabaseAnonKey.match(/\./g) || []).length !== 2) {
-        newErrors.supabaseAnonKey = 'Anon Key must be a valid JWT.';
-        isValid = false;
-      }
-
-      set({ errors: newErrors, isValidated: isValid });
-      return isValid;
-    },
-    saveCredentials: () => {
-      const isValid = get().validateCredentials();
-      if (isValid) {
-        console.log('Saving Supabase credentials and creating client...');
-        const { supabaseUrl, supabaseAnonKey } = get();
-        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-        set({ isConfigured: true, supabase: supabaseClient });
-      }
-    },
+  () => ({
+    supabaseUrl,
+    supabaseAnonKey,
+    isConfigured: true,
+    supabase,
   }),
 );
+
 
 /**
  * Tools

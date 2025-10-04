@@ -440,8 +440,8 @@ button .icon {
 }
 
 .primary-action-button {
-  background-color: var(--accent-green);
-  color: #000;
+  background-color: var(--accent-orange);
+  color: white;
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -453,7 +453,7 @@ button .icon {
 }
 
 .primary-action-button.active {
-  background-color: var(--accent-green);
+  background-color: var(--accent-orange);
 }
 
 .primary-action-button .material-symbols-outlined {
@@ -471,7 +471,7 @@ button .icon {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px;
+  padding: 16px 24px 24px;
   display: flex;
   justify-content: center;
   z-index: 100;
@@ -493,6 +493,7 @@ button .icon {
   width: 100%;
   max-width: 800px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  position: relative;
 }
 
 .input-bar-wrapper input[type='text'] {
@@ -502,6 +503,7 @@ button .icon {
   color: var(--text-primary);
   font-size: 16px;
   padding: 8px;
+  padding-right: 90px;
 }
 .input-bar-wrapper input[type='text']::placeholder {
   color: var(--text-secondary);
@@ -511,6 +513,15 @@ button .icon {
 }
 .input-bar-wrapper input[type='text']:disabled {
   background-color: transparent;
+}
+
+.input-actions {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
 }
 
 @keyframes opacity-pulse {
@@ -857,7 +868,7 @@ form button:first-of-type {
   width: 400px;
   max-width: 100%;
   height: 100vh;
-  background: var(--sidebar-bg);
+  background: var(--background);
   border-left: 1px solid var(--border-stroke);
   z-index: 1000;
   transform: translateX(100%);
@@ -1375,6 +1386,7 @@ form button:first-of-type {
   align-items: center;
   overflow: hidden;
   position: relative;
+  transition: box-shadow 0.2s ease-out; /* Add transition for smooth pulsing */
 }
 
 .voice-call-orb-effect {

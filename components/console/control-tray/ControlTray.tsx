@@ -87,24 +87,26 @@ function ControlTray() {
           onChange={e => setText(e.target.value)}
           disabled={connected} // connected is true during voice call
         />
-        <button
-          className="icon-button"
-          onClick={handleMuteToggle}
-          aria-label={muted ? 'Unmute' : 'Mute'}
-          disabled={!connected || isVoiceCallActive}
-        >
-          <span className="material-symbols-outlined filled">
-            {muted ? 'mic_off' : 'mic'}
-          </span>
-        </button>
-        <button
-          className="primary-action-button"
-          onClick={handleShowVoiceCall}
-          aria-label={'Start voice conversation'}
-          disabled={connected}
-        >
-          <span className="material-symbols-outlined filled">play_arrow</span>
-        </button>
+        <div className="input-actions">
+          <button
+            className="icon-button"
+            onClick={handleMuteToggle}
+            aria-label={muted ? 'Unmute' : 'Mute'}
+            disabled={!connected || isVoiceCallActive}
+          >
+            <span className="material-symbols-outlined filled">
+              {muted ? 'mic_off' : 'mic'}
+            </span>
+          </button>
+          <button
+            className="icon-button"
+            onClick={handleShowVoiceCall}
+            aria-label={'Start voice conversation'}
+            disabled={connected}
+          >
+            <span className="material-symbols-outlined filled">graphic_eq</span>
+          </button>
+        </div>
       </div>
     </section>
   );
