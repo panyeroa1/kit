@@ -672,7 +672,7 @@ export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
       phoneNumberId: '169412612933088',
       wabaId: '235412396315733',
       accessToken:
-        'EAANrPCBVeQgBPvZBX0XDSpqf4xDQ2mZBAviSZBJuDg1sI2zPSpA3lvkCUXynAUXuYmqbNXjsLlPA8ZBCUl2mqN4KsZCUlh11EIZAZAOksyDjbJTP2UYxWVaNZCUo8BAbUpZBfqNWr05S0HBVZAE79LVIlRnUx9QXmIY5cPmTO7yRRtlYH7FJxTT13oa81qwg9Clb3RnBZCaKQC0yeeWZAHmnsrUABogZD',
+        'EAANrPCBVeQgBPkLlhkO0W6Xo3A7vVKRkJWZBhw9hjp2WQCi5G7FPee8Iwwuk5dbbNlwa9DLvXyt03Nl8QOd9Wxxuu7q5VKLQS06ZCN4o7xUZBj0n6ZCklN49PoxEP4vP9V5yXiCIZBZC61ZApKvcMeoTEZCBgNKsXZCsRhU8XqaNRUDl1zgGdrgRMMVAdHwdoksHZCdKsmh6DBZBteLOWhuuJ2UbigZD',
       isConfigured: true,
       isValidated: false,
       errors: {},
