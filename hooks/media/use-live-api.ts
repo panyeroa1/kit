@@ -547,7 +547,6 @@ export function useLiveApi({
     if (client.status === 'connected' || client.status === 'connecting') {
       return;
     }
-    client.disconnect();
     await client.connect(config);
   }, [client, config]);
 
