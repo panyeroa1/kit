@@ -78,6 +78,7 @@ export class GenAILiveClient {
 
   protected readonly client: GoogleGenAI;
   protected session?: Session;
+  private sessionPromise: Promise<Session> | null = null;
 
   private _status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
   public get status() {
@@ -110,18 +111,22 @@ export class GenAILiveClient {
       onclose: this.onClose.bind(this),
     };
 
+    const promise = this.client.live.connect({
+      model: this.model,
+      config: {
+        ...config,
+      },
+      callbacks,
+    });
+    this.sessionPromise = promise;
+
     try {
-      this.session = await this.client.live.connect({
-        model: this.model,
-        config: {
-          ...config,
-        },
-        callbacks,
-      });
+      this.session = await promise;
     } catch (e: any) {
       console.error('Error connecting to GenAI Live:', e);
       this._status = 'disconnected';
       this.session = undefined;
+      this.sessionPromise = null;
       const errorEvent = new ErrorEvent('error', {
         error: e,
         message: e?.message || 'Failed to connect.',
@@ -137,6 +142,7 @@ export class GenAILiveClient {
   public disconnect() {
     this.session?.close();
     this.session = undefined;
+    this.sessionPromise = null;
     this._status = 'disconnected';
 
     this.log('client.close', `Disconnected`);
@@ -154,29 +160,43 @@ export class GenAILiveClient {
   }
 
   public sendRealtimeInput(chunks: Array<{ mimeType: string; data: string }>) {
-    if (this._status !== 'connected' || !this.session) {
-      // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
-      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
+    if (!this.sessionPromise) {
+      this.emitter.emit(
+        'error',
+        new ErrorEvent('error', { message: 'Client is not connected' }),
+      );
       return;
     }
-    chunks.forEach(chunk => {
-      this.session!.sendRealtimeInput({ media: chunk });
-    });
+    this.sessionPromise
+      .then(session => {
+        chunks.forEach(chunk => {
+          session.sendRealtimeInput({ media: chunk });
+        });
 
-    let hasAudio = false;
-    let hasVideo = false;
-    for (let i = 0; i < chunks.length; i++) {
-      const ch = chunks[i];
-      if (ch.mimeType.includes('audio')) hasAudio = true;
-      if (ch.mimeType.includes('image')) hasVideo = true;
-      if (hasAudio && hasVideo) break;
-    }
+        let hasAudio = false;
+        let hasVideo = false;
+        for (let i = 0; i < chunks.length; i++) {
+          const ch = chunks[i];
+          if (ch.mimeType.includes('audio')) hasAudio = true;
+          if (ch.mimeType.includes('image')) hasVideo = true;
+          if (hasAudio && hasVideo) break;
+        }
 
-    let message = 'unknown';
-    if (hasAudio && hasVideo) message = 'audio + video';
-    else if (hasAudio) message = 'audio';
-    else if (hasVideo) message = 'video';
-    this.log(`client.realtimeInput`, message);
+        let message = 'unknown';
+        if (hasAudio && hasVideo) message = 'audio + video';
+        else if (hasAudio) message = 'audio';
+        else if (hasVideo) message = 'video';
+        this.log(`client.realtimeInput`, message);
+      })
+      .catch(e => {
+        this.emitter.emit(
+          'error',
+          new ErrorEvent('error', {
+            error: e,
+            message: 'Session promise rejected while sending data',
+          }),
+        );
+      });
   }
 
   public sendToolResponse(toolResponse: LiveClientToolResponse) {
