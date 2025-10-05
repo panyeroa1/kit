@@ -12,10 +12,12 @@ import { DEFAULT_LIVE_API_MODEL, DEFAULT_VOICE } from './constants';
 import {
   FunctionResponse,
   FunctionResponseScheduling,
+  GoogleGenAI,
   LiveServerToolCall,
 } from '@google/genai';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { TEXT_CHAT_SYSTEM_INSTRUCTION } from './prompts';
 
 export const businessAssistantTools: FunctionCall[] = [
   {
@@ -938,12 +940,93 @@ export const useLogStore = create<{
   addTurn: (turn: Omit<ConversationTurn, 'timestamp'>) => void;
   updateLastTurn: (update: Partial<ConversationTurn>) => void;
   clearTurns: () => void;
+  sendMessage: (
+    text: string,
+    image?: { data: string; mimeType: string } | null,
+  ) => Promise<void>;
 }>((set, get) => ({
   turns: [],
   addTurn: (turn: Omit<ConversationTurn, 'timestamp'>) =>
     set(state => ({
       turns: [...state.turns, { ...turn, timestamp: new Date() }],
     })),
+  sendMessage: async (
+    text: string,
+    image?: { data: string; mimeType: string } | null,
+  ) => {
+    const { addTurn, updateLastTurn } = useLogStore.getState();
+
+    const imagePreview = image
+      ? `data:${image.mimeType};base64,${image.data}`
+      : null;
+
+    addTurn({
+      role: 'user',
+      text,
+      image: imagePreview,
+      isFinal: true,
+    });
+
+    try {
+      // Fix: Use process.env.API_KEY per coding guidelines.
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
+        throw new Error('Missing API_KEY environment variable.');
+      }
+      const ai = new GoogleGenAI({ apiKey });
+
+      const historyTurns = useLogStore.getState().turns.slice(0, -1);
+      const history = historyTurns
+        .map(turn => ({
+          role: turn.role === 'agent' ? 'model' : 'user',
+          parts: [{ text: turn.text }], // History doesn't include images for now
+        }))
+        .filter(turn => turn.role === 'user' || turn.role === 'model');
+
+      const userParts: any[] = [];
+      if (image) {
+        userParts.push({
+          inlineData: {
+            mimeType: image.mimeType,
+            data: image.data,
+          },
+        });
+      }
+      if (text) {
+        userParts.push({ text: text });
+      }
+
+      const contents = [...history, { role: 'user', parts: userParts }];
+
+      const stream = await ai.models.generateContentStream({
+        model: 'gemini-2.5-flash',
+        contents: contents,
+        config: {
+          systemInstruction: TEXT_CHAT_SYSTEM_INSTRUCTION,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      addTurn({ role: 'agent', text: '', isFinal: false });
+      let agentResponse = '';
+      for await (const chunk of stream) {
+        const chunkText = chunk.text;
+        if (chunkText) {
+          agentResponse += chunkText;
+          updateLastTurn({ text: agentResponse });
+        }
+      }
+      updateLastTurn({ isFinal: true });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred.';
+      updateLastTurn({
+        text: `Sorry, I encountered an error: ${errorMessage}`,
+        isFinal: true,
+      });
+    }
+  },
   updateLastTurn: (update: Partial<Omit<ConversationTurn, 'timestamp'>>) => {
     set(state => {
       if (state.turns.length === 0) {

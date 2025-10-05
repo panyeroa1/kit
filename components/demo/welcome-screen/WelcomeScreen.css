@@ -52,11 +52,14 @@
 }
 
 .chip.chip-image .material-symbols-outlined {
-  color: var(--accent-green);
+  color: var(--accent-purple);
 }
-.chip.chip-summarize .material-symbols-outlined {
+.chip.chip-drive .material-symbols-outlined {
+  color: var(--accent-blue-headers);
+}
+.chip.chip-calendar .material-symbols-outlined {
   color: var(--accent-orange);
 }
-.chip.chip-write .material-symbols-outlined {
-  color: var(--accent-purple);
+.chip.chip-sheets .material-symbols-outlined {
+  color: var(--accent-green);
 }
