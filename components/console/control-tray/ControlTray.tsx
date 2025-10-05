@@ -83,7 +83,14 @@ function ControlTray() {
     // Don't record audio from here if the voice call is active
     if (connected && !isVoiceCallActive && !muted && audioRecorder) {
       audioRecorder.on('data', onData);
-      audioRecorder.start();
+      audioRecorder.start().catch(err => {
+        console.error('Failed to start audio recorder:', err);
+        useUI
+          .getState()
+          .showSnackbar(
+            'Could not start microphone. Please check permissions.',
+          );
+      });
     } else {
       audioRecorder.stop();
     }
