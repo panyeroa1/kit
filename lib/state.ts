@@ -686,7 +686,7 @@ interface WhatsAppIntegrationState {
   setAuthToken: (id: string) => void;
   setTwilioPhoneNumber: (token: string) => void;
   validateCredentials: () => boolean;
-  saveCredentials: () => void;
+  saveCredentials: () => Promise<void>;
   sendMessage: (
     recipientPhoneNumber: string,
     message: string,
@@ -742,21 +742,34 @@ export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
         set({ errors: newErrors, isValidated: isValid });
         return isValid;
       },
-      saveCredentials: () => {
+      saveCredentials: async () => {
+        const { showSnackbar } = useUI.getState();
         const isValid = get().validateCredentials();
-        if (isValid) {
-          console.log('Saving Twilio credentials (simulated)...');
-          set({ isConfigured: true });
+        if (!isValid) {
+          showSnackbar('Validation failed. Please check your credentials.');
+          return;
+        }
+
+        const { accountSid, authToken, twilioPhoneNumber } = get();
+
+        try {
+          // Invoke a Supabase Edge Function to securely store credentials
+          const { error } = await supabase.functions.invoke('save-twilio-credentials', {
+            body: { accountSid, authToken, twilioPhoneNumber },
+          });
+
+          if (error) throw error;
+
+          set({ isConfigured: true, isValidated: true, errors: {} });
+          showSnackbar('Twilio credentials saved successfully!');
+        } catch (error: any) {
+          console.error('Error saving Twilio credentials:', error);
+          set({ isConfigured: false });
+          showSnackbar(`Error: ${error.message || 'Failed to save credentials.'}`);
         }
       },
       sendMessage: async (recipientPhoneNumber, messageBody) => {
-        const {
-          isConfigured,
-          isUserConnected,
-          accountSid,
-          authToken,
-          twilioPhoneNumber,
-        } = get();
+        const { isConfigured, isUserConnected } = get();
 
         if (!isConfigured) {
           return 'Twilio integration is not configured by the admin.';
@@ -768,35 +781,55 @@ export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
           return 'Missing required parameters. I need a recipient phone number and a message body.';
         }
 
-        // This simulates a server-side fetch to Twilio's API
-        const from = `whatsapp:${twilioPhoneNumber}`;
-        const to = `whatsapp:${recipientPhoneNumber}`;
-        console.log(
-          `(Simulated Server Call) Sending WhatsApp message via Twilio:
-          - Account SID: ${accountSid}
-          - From: ${from}
-          - To: ${to}
-          - Body: ${messageBody}`,
-        );
-        return 'Twilio WhatsApp message sent successfully (simulated).';
+        try {
+          // Invoke a Supabase Edge Function to send the message
+          const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
+            body: { to: recipientPhoneNumber, body: messageBody },
+          });
+
+          if (error) throw error;
+          
+          return data.message || 'Message sent successfully.';
+        } catch (error: any) {
+            console.error('Error sending WhatsApp message via Edge Function:', error);
+            return `Error: ${error.message || 'Failed to send message.'}`;
+        }
       },
       readChatHistory: async (contact_name_or_phone, message_count = 10) => {
         const { isUserConnected } = get();
         if (!isUserConnected) {
           return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
         }
-        // This is a mocked implementation. A real app would query a database populated by Twilio webhooks.
-        return `(Mocked Server Response) Reading last ${message_count} messages for ${contact_name_or_phone} from server database:
-- User: "Hey, can we reschedule?"
-- You: "Sure, how about tomorrow at 2 PM?"`;
+        
+        try {
+          // Invoke a Supabase Edge Function to read history
+          const { data, error } = await supabase.functions.invoke('read-whatsapp-history', {
+            body: { contact: contact_name_or_phone, count: message_count },
+          });
+          if (error) throw error;
+          return data.history || 'Could not retrieve chat history.';
+        } catch (error: any) {
+            console.error('Error reading WhatsApp history via Edge Function:', error);
+            return `Error: ${error.message || 'Failed to read chat history.'}`;
+        }
       },
       searchContact: async (contact_name: string) => {
         const { isUserConnected } = get();
         if (!isUserConnected) {
           return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
         }
-        // This is a mocked implementation. Twilio does not have a contact search API.
-        return `(Mocked Server Response) The Twilio API does not support searching contacts by name. A real application would look up '${contact_name}' in its own database. For this demo, I've found a matching number: +15551234567.`;
+
+        try {
+          // Invoke a Supabase Edge Function to search for a contact
+          const { data, error } = await supabase.functions.invoke('search-whatsapp-contact', {
+            body: { name: contact_name },
+          });
+          if (error) throw error;
+          return data.result || `No contact found for ${contact_name}.`;
+        } catch (error: any) {
+            console.error('Error searching WhatsApp contact via Edge Function:', error);
+            return `Error: ${error.message || 'Failed to search contact.'}`;
+        }
       },
       // User-specific settings
       isUserConnected: false,
