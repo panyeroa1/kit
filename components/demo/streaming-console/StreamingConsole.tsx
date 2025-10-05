@@ -117,7 +117,6 @@ export default function StreamingConsole() {
       systemInstruction: getSystemPrompt(),
       tools: [
         { functionDeclarations: functionDeclarations },
-        { googleSearch: {} }
       ],
     };
 
