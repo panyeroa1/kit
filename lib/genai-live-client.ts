@@ -67,6 +67,7 @@ export interface LiveClientEventTypes {
   turncomplete: () => void;
   inputTranscription: (text: string, isFinal: boolean) => void;
   outputTranscription: (text: string, isFinal: boolean) => void;
+  status: (status: 'connected' | 'disconnected' | 'connecting') => void;
 }
 
 // FIX: Refactored to use composition over inheritance for EventEmitter.
@@ -85,6 +86,13 @@ export class GenAILiveClient {
     return this._status;
   }
 
+  private setStatus(status: 'connected' | 'disconnected' | 'connecting') {
+    if (this._status !== status) {
+      this._status = status;
+      this.emitter.emit('status', this._status);
+    }
+  }
+
   /**
    * Creates a new GenAILiveClient instance.
    * @param apiKey - API key for authentication with Google GenAI
@@ -99,11 +107,11 @@ export class GenAILiveClient {
   }
 
   public async connect(config: LiveConnectConfig): Promise<boolean> {
-    if (this._status === 'connected' || this._status === 'connecting') {
+    if (this.status === 'connected' || this.status === 'connecting') {
       return false;
     }
 
-    this._status = 'connecting';
+    this.setStatus('connecting');
     const callbacks: LiveCallbacks = {
       onopen: this.onOpen.bind(this),
       onmessage: this.onMessage.bind(this),
@@ -124,7 +132,6 @@ export class GenAILiveClient {
       this.session = await promise;
     } catch (e: any) {
       console.error('Error connecting to GenAI Live:', e);
-      this._status = 'disconnected';
       this.session = undefined;
       this.sessionPromise = null;
       const errorEvent = new ErrorEvent('error', {
@@ -135,7 +142,6 @@ export class GenAILiveClient {
       return false;
     }
 
-    this._status = 'connected';
     return true;
   }
 
@@ -143,14 +149,14 @@ export class GenAILiveClient {
     this.session?.close();
     this.session = undefined;
     this.sessionPromise = null;
-    this._status = 'disconnected';
+    this.setStatus('disconnected');
 
     this.log('client.close', `Disconnected`);
     return true;
   }
 
   public send(parts: Part | Part[], turnComplete: boolean = true) {
-    if (this._status !== 'connected' || !this.session) {
+    if (this.status !== 'connected' || !this.session) {
       // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
       this.emitter.emit('error', new ErrorEvent('Client is not connected'));
       return;
@@ -200,7 +206,7 @@ export class GenAILiveClient {
   }
 
   public sendToolResponse(toolResponse: LiveClientToolResponse) {
-    if (this._status !== 'connected' || !this.session) {
+    if (this.status !== 'connected' || !this.session) {
       // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
       this.emitter.emit('error', new ErrorEvent('Client is not connected'));
       return;
@@ -308,7 +314,7 @@ export class GenAILiveClient {
   }
 
   protected onError(e: ErrorEvent) {
-    this._status = 'disconnected';
+    this.setStatus('disconnected');
     console.error('error:', e);
 
     const message = `Could not connect to GenAI Live: ${e.message}`;
@@ -318,13 +324,13 @@ export class GenAILiveClient {
   }
 
   protected onOpen() {
-    this._status = 'connected';
+    this.setStatus('connected');
     // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
     this.emitter.emit('open');
   }
 
   protected onClose(e: CloseEvent) {
-    this._status = 'disconnected';
+    this.setStatus('disconnected');
     let reason = e.reason || '';
     if (reason.toLowerCase().includes('error')) {
       const prelude = 'ERROR]';

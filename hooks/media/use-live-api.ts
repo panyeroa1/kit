@@ -34,6 +34,7 @@ export type UseLiveApiResults = {
   connect: () => Promise<void>;
   disconnect: () => void;
   connected: boolean;
+  status: 'connected' | 'disconnected' | 'connecting';
 
   volume: number;
   isSpeakerMuted: boolean;
@@ -371,6 +372,8 @@ export function useLiveApi({
 
   const [volume, setVolume] = useState(0);
   const [connected, setConnected] = useState(false);
+  const [status, setStatus] =
+    useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
 
@@ -410,6 +413,10 @@ export function useLiveApi({
       setConnected(false);
     };
 
+    const onStatus = (s: 'connected' | 'disconnected' | 'connecting') => {
+      setStatus(s);
+    };
+
     const stopAudioStreamer = () => {
       if (audioStreamerRef.current) {
         audioStreamerRef.current.stop();
@@ -425,6 +432,7 @@ export function useLiveApi({
     // Bind event listeners
     client.on('open', onOpen);
     client.on('close', onClose);
+    client.on('status', onStatus);
     client.on('interrupted', stopAudioStreamer);
     client.on('audio', onAudio);
 
@@ -533,6 +541,7 @@ export function useLiveApi({
       // Clean up event listeners
       client.off('open', onOpen);
       client.off('close', onClose);
+      client.off('status', onStatus);
       client.off('interrupted', stopAudioStreamer);
       client.off('audio', onAudio);
       client.off('toolcall', onToolCall);
@@ -561,6 +570,7 @@ export function useLiveApi({
     setConfig,
     connect,
     connected,
+    status,
     disconnect,
     volume,
     isSpeakerMuted,

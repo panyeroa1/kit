@@ -23,6 +23,7 @@ import React, { memo, useEffect, useRef, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { useLogStore, useUI } from '@/lib/state';
+import cn from 'classnames';
 
 const fileToBase64 = (
   file: File,
@@ -48,10 +49,11 @@ function ControlTray() {
   } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const connectionInitiated = useRef(false);
 
   const { isVoiceCallActive } = useUI();
   const { editingImage, setEditingImage } = useUI();
-  const { client, connected } = useLiveAPIContext();
+  const { client, connected, connect, status } = useLiveAPIContext();
   const { sendMessage } = useLogStore();
   const { showVoiceCall } = useUI();
 
@@ -91,6 +93,15 @@ function ControlTray() {
     };
   }, [connected, client, muted, audioRecorder, isVoiceCallActive]);
 
+  useEffect(() => {
+    if (status === 'connected' && connectionInitiated.current) {
+      showVoiceCall();
+      connectionInitiated.current = false;
+    } else if (status === 'disconnected' && connectionInitiated.current) {
+      connectionInitiated.current = false;
+    }
+  }, [status, showVoiceCall]);
+
   const handleShowVoiceCall = async () => {
     try {
       // Request microphone permission.
@@ -98,8 +109,8 @@ function ControlTray() {
       // Immediately stop the tracks to free up the microphone,
       // as AudioRecorder will request it again.
       stream.getTracks().forEach(track => track.stop());
-      // If permission is granted, show the voice call UI.
-      showVoiceCall();
+      connectionInitiated.current = true;
+      connect();
     } catch (err) {
       console.error('Error requesting microphone permission:', err);
       // Show a message to the user if permission is denied.
@@ -259,9 +270,13 @@ function ControlTray() {
                 className="icon-button"
                 onClick={handleShowVoiceCall}
                 aria-label={'Start voice conversation'}
-                disabled={connected}
+                disabled={status !== 'disconnected'}
               >
-                <span className="material-symbols-outlined filled">
+                <span
+                  className={cn('material-symbols-outlined filled', {
+                    connecting: status === 'connecting',
+                  })}
+                >
                   graphic_eq
                 </span>
               </button>
