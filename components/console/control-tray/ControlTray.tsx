@@ -49,15 +49,25 @@ function ControlTray() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { showVoiceCall, isVoiceCallActive } = useUI();
+  const { isVoiceCallActive } = useUI();
+  const { editingImage, setEditingImage } = useUI();
   const { client, connected } = useLiveAPIContext();
   const { sendMessage } = useLogStore();
+  const { showVoiceCall } = useUI();
 
   useEffect(() => {
     if (!connected) {
       setMuted(false);
     }
   }, [connected]);
+
+  useEffect(() => {
+    if (editingImage) {
+      const imageUrl = `data:${editingImage.mimeType};base64,${editingImage.data}`;
+      setImagePreview(imageUrl);
+      setAttachedImage(editingImage);
+    }
+  }, [editingImage]);
 
   useEffect(() => {
     const onData = (base64: string) => {
@@ -93,12 +103,19 @@ function ControlTray() {
 
   const removeImage = () => {
     if (imagePreview) {
-      URL.revokeObjectURL(imagePreview);
+      // Revoke object URL only if it's one, not for data URLs
+      if (imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
     }
     setImagePreview(null);
     setAttachedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = ''; // Reset file input
+    }
+    // If we were editing, clear that state too
+    if (editingImage) {
+      setEditingImage(null);
     }
   };
 
@@ -106,14 +123,17 @@ function ControlTray() {
     if (!text.trim() && !attachedImage) return;
 
     const currentText = text;
-    const currentImage = attachedImage;
+    // If we are in editing mode, the image is already in the `editingImage`
+    // global state. Otherwise, we send the newly attached image.
+    const newImage = editingImage ? null : attachedImage;
 
     // Clear inputs immediately before sending
     setText('');
-    removeImage();
+    removeImage(); // This will also clear editingImage state if active
 
-    await sendMessage(currentText, currentImage);
+    await sendMessage(currentText, newImage);
   };
+
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -131,6 +151,10 @@ function ControlTray() {
   ) => {
     const file = event.target.files?.[0];
     if (file) {
+      // If user attaches a new image, we are no longer in edit mode
+      if (editingImage) {
+        setEditingImage(null);
+      }
       setImagePreview(URL.createObjectURL(file));
       const { data, mimeType } = await fileToBase64(file);
       setAttachedImage({ data, mimeType });
@@ -174,7 +198,13 @@ function ControlTray() {
           </button>
           <input
             type="text"
-            placeholder={attachedImage ? 'Add a message...' : 'Ask anything'}
+            placeholder={
+              editingImage
+                ? 'Describe your edits...'
+                : attachedImage
+                  ? 'Add a message...'
+                  : 'Ask anything, or create an image...'
+            }
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}

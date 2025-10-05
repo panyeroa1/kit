@@ -14,6 +14,7 @@ import {
   FunctionResponseScheduling,
   GoogleGenAI,
   LiveServerToolCall,
+  Modality,
 } from '@google/genai';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
@@ -255,6 +256,8 @@ export const useUI = create<{
   hideWhatsAppModal: () => void;
   snackbarMessage: string | null;
   showSnackbar: (message: string | null) => void;
+  editingImage: { data: string; mimeType: string } | null;
+  setEditingImage: (image: { data: string; mimeType: string } | null) => void;
 }>(set => ({
   isSidebarOpen: true,
   toggleSidebar: () => set(state => ({ isSidebarOpen: !state.isSidebarOpen })),
@@ -266,6 +269,8 @@ export const useUI = create<{
   hideWhatsAppModal: () => set({ isWhatsAppModalOpen: false }),
   snackbarMessage: null,
   showSnackbar: (message: string | null) => set({ snackbarMessage: message }),
+  editingImage: null,
+  setEditingImage: image => set({ editingImage: image }),
 }));
 
 /**
@@ -919,7 +924,7 @@ export const useLogStore = create<{
   clearTurns: () => void;
   sendMessage: (
     text: string,
-    image?: { data: string; mimeType: string } | null,
+    newImage?: { data: string; mimeType: string } | null,
   ) => Promise<void>;
 }>((set, get) => ({
   turns: [],
@@ -929,43 +934,142 @@ export const useLogStore = create<{
     })),
   sendMessage: async (
     text: string,
-    image?: { data: string; mimeType: string } | null,
+    newImage?: { data: string; mimeType: string } | null,
   ) => {
-    const { addTurn, updateLastTurn } = useLogStore.getState();
+    const { addTurn, updateLastTurn } = get();
+    const { editingImage, setEditingImage } = useUI.getState();
 
-    const imagePreview = image
-      ? `data:${image.mimeType};base64,${image.data}`
+    // Determine the image to show in the user's turn log.
+    const imageForLog = newImage
+      ? `data:${newImage.mimeType};base64,${newImage.data}`
       : null;
 
     addTurn({
       role: 'user',
       text,
-      image: imagePreview,
+      image: imageForLog,
       isFinal: true,
     });
 
-    try {
-      // Fix: Use process.env.API_KEY per coding guidelines.
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) {
-        throw new Error('Missing API_KEY environment variable.');
-      }
-      const ai = new GoogleGenAI({ apiKey });
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      addTurn({
+        role: 'system',
+        text: 'API_KEY is not configured.',
+        isFinal: true,
+      });
+      return;
+    }
+    const ai = new GoogleGenAI({ apiKey });
 
-      const historyTurns = useLogStore.getState().turns.slice(0, -1);
+    // Case 1: Image Editing
+    if (editingImage && text) {
+      addTurn({ role: 'agent', text: 'Editing image...', isFinal: false });
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  data: editingImage.data,
+                  mimeType: editingImage.mimeType,
+                },
+              },
+              { text: text },
+            ],
+          },
+          config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+          },
+        });
+
+        let editedImage: string | null = null;
+        let responseText = '';
+
+        for (const part of response.candidates[0].content.parts) {
+          if (part.text) {
+            responseText += part.text + ' ';
+          } else if (part.inlineData) {
+            editedImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          }
+        }
+
+        updateLastTurn({
+          text: responseText.trim() || 'Here is the edited image.',
+          image: editedImage,
+          isFinal: true,
+        });
+      } catch (error) {
+        console.error('Error editing image:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred.';
+        updateLastTurn({
+          text: `Sorry, I encountered an error while editing the image: ${errorMessage}`,
+          isFinal: true,
+        });
+      } finally {
+        setEditingImage(null);
+      }
+      return;
+    }
+
+    // Case 2: Image Generation
+    const generationKeywords = [
+      'create an image',
+      'generate an image',
+      'draw a picture',
+      'create a picture',
+      'draw an image',
+    ];
+    if (generationKeywords.some(keyword => text.toLowerCase().includes(keyword))) {
+      addTurn({ role: 'agent', text: 'Generating image...', isFinal: false });
+      try {
+        const response = await ai.models.generateImages({
+          model: 'imagen-4.0-generate-001',
+          prompt: text,
+          config: {
+            numberOfImages: 1,
+            outputMimeType: 'image/jpeg',
+          },
+        });
+
+        const base64ImageBytes = response.generatedImages[0].image.imageBytes;
+        const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+
+        updateLastTurn({
+          text: 'Here is the image you requested.',
+          image: imageUrl,
+          isFinal: true,
+        });
+      } catch (error) {
+        console.error('Error generating image:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred.';
+        updateLastTurn({
+          text: `Sorry, I encountered an error while generating the image: ${errorMessage}`,
+          isFinal: true,
+        });
+      }
+      return;
+    }
+
+    // Case 3: Standard Chat / Multimodal (with a new image)
+    try {
+      const historyTurns = get().turns.slice(0, -1);
       const history = historyTurns
         .map(turn => ({
           role: turn.role === 'agent' ? 'model' : 'user',
-          parts: [{ text: turn.text }], // History doesn't include images for now
+          parts: [{ text: turn.text }],
         }))
         .filter(turn => turn.role === 'user' || turn.role === 'model');
 
       const userParts: any[] = [];
-      if (image) {
+      if (newImage) {
         userParts.push({
           inlineData: {
-            mimeType: image.mimeType,
-            data: image.data,
+            mimeType: newImage.mimeType,
+            data: newImage.data,
           },
         });
       }
@@ -998,7 +1102,8 @@ export const useLogStore = create<{
       console.error('Error sending message:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'An unknown error occurred.';
-      updateLastTurn({
+      addTurn({
+        role: 'system',
         text: `Sorry, I encountered an error: ${errorMessage}`,
         isFinal: true,
       });

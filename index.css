@@ -689,12 +689,40 @@ button .icon {
   overflow-wrap: break-word;
 }
 
-.attached-image {
-  max-width: 300px;
-  max-height: 300px;
-  border-radius: 8px;
-  margin-bottom: 8px;
+.image-container {
+  position: relative;
   display: block;
+  max-width: 300px;
+  margin-bottom: 8px;
+}
+
+.attached-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+.edit-image-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px);
+  color: white;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s;
+  width: 36px;
+  height: 36px;
+}
+
+.edit-image-button .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.image-container:hover .edit-image-button {
+  opacity: 1;
 }
 
 .transcription-entry.interim .transcription-text-content {

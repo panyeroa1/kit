@@ -17,6 +17,7 @@ import {
   businessAssistantTools,
   FunctionCall,
   useAuthStore,
+  useUI,
 } from '@/lib/state';
 import { coreTools } from '@/lib/tools/core';
 
@@ -63,6 +64,17 @@ export default function StreamingConsole() {
   const { tools: templateTools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { setEditingImage } = useUI();
+
+  const handleEditImage = (base64Url: string) => {
+    const [header, data] = base64Url.split(',');
+    if (!header || !data) return;
+    const mimeTypeMatch = header.match(/data:(.*);base64/);
+    if (!mimeTypeMatch || !mimeTypeMatch[1]) return;
+    const mimeType = mimeTypeMatch[1];
+    setEditingImage({ data, mimeType });
+  };
+
 
   // Set the configuration for the Live API
   useEffect(() => {
@@ -227,11 +239,22 @@ export default function StreamingConsole() {
               </div>
               <div className="transcription-text-content">
                 {t.image && (
-                  <img
-                    src={t.image}
-                    alt="User attachment"
-                    className="attached-image"
-                  />
+                  <div className="image-container">
+                    <img
+                      src={t.image}
+                      alt="User attachment"
+                      className="attached-image"
+                    />
+                    {t.role === 'agent' && (
+                      <button
+                        className="edit-image-button icon-button"
+                        onClick={() => handleEditImage(t.image!)}
+                        aria-label="Edit this image"
+                      >
+                        <span className="material-symbols-outlined">edit</span>
+                      </button>
+                    )}
+                  </div>
                 )}
                 {renderContent(t.text)}
               </div>
