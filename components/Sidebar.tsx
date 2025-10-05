@@ -210,15 +210,17 @@ export default function Sidebar() {
               </div>
 
               <div className="sidebar-section settings-card">
-                <h4 className="sidebar-section-title">WhatsApp Credentials</h4>
+                <h4 className="sidebar-section-title">
+                  Twilio Credentials for WhatsApp
+                </h4>
                 <p className="description-text">
-                  Configure your WhatsApp Business API credentials from your{' '}
+                  Configure your credentials from your{' '}
                   <a
-                    href="https://developers.facebook.com/apps/"
+                    href="https://www.twilio.com/console"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Meta for Developers
+                    Twilio Console
                   </a>
                   .
                 </p>
@@ -226,53 +228,57 @@ export default function Sidebar() {
                   disabled={connected || whatsAppIntegration.isConfigured}
                 >
                   <label>
-                    Phone Number ID
+                    Twilio Account SID
                     <input
                       type="text"
-                      placeholder="Enter your Phone Number ID"
-                      value={whatsAppIntegration.phoneNumberId}
+                      placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={whatsAppIntegration.accountSid}
                       onChange={e =>
-                        whatsAppIntegration.setPhoneNumberId(e.target.value)
+                        whatsAppIntegration.setAccountSid(e.target.value)
                       }
-                      aria-invalid={!!whatsAppIntegration.errors.phoneNumberId}
+                      aria-invalid={!!whatsAppIntegration.errors.accountSid}
                     />
-                    {whatsAppIntegration.errors.phoneNumberId && (
+                    {whatsAppIntegration.errors.accountSid && (
                       <p className="validation-error">
-                        {whatsAppIntegration.errors.phoneNumberId}
+                        {whatsAppIntegration.errors.accountSid}
                       </p>
                     )}
                   </label>
                   <label>
-                    WhatsApp Business Account ID
-                    <input
-                      type="text"
-                      placeholder="Enter your WABA ID"
-                      value={whatsAppIntegration.wabaId}
-                      onChange={e =>
-                        whatsAppIntegration.setWabaId(e.target.value)
-                      }
-                      aria-invalid={!!whatsAppIntegration.errors.wabaId}
-                    />
-                    {whatsAppIntegration.errors.wabaId && (
-                      <p className="validation-error">
-                        {whatsAppIntegration.errors.wabaId}
-                      </p>
-                    )}
-                  </label>
-                  <label>
-                    Access Token
+                    Twilio Auth Token
                     <input
                       type="password"
-                      placeholder="Enter your temporary or permanent token"
-                      value={whatsAppIntegration.accessToken}
+                      placeholder="Enter your Twilio Auth Token"
+                      value={whatsAppIntegration.authToken}
                       onChange={e =>
-                        whatsAppIntegration.setAccessToken(e.target.value)
+                        whatsAppIntegration.setAuthToken(e.target.value)
                       }
-                      aria-invalid={!!whatsAppIntegration.errors.accessToken}
+                      aria-invalid={!!whatsAppIntegration.errors.authToken}
                     />
-                    {whatsAppIntegration.errors.accessToken && (
+                    {whatsAppIntegration.errors.authToken && (
                       <p className="validation-error">
-                        {whatsAppIntegration.errors.accessToken}
+                        {whatsAppIntegration.errors.authToken}
+                      </p>
+                    )}
+                  </label>
+                  <label>
+                    Twilio Phone Number
+                    <input
+                      type="text"
+                      placeholder="e.g., +15551234567"
+                      value={whatsAppIntegration.twilioPhoneNumber}
+                      onChange={e =>
+                        whatsAppIntegration.setTwilioPhoneNumber(
+                          e.target.value,
+                        )
+                      }
+                      aria-invalid={
+                        !!whatsAppIntegration.errors.twilioPhoneNumber
+                      }
+                    />
+                    {whatsAppIntegration.errors.twilioPhoneNumber && (
+                      <p className="validation-error">
+                        {whatsAppIntegration.errors.twilioPhoneNumber}
                       </p>
                     )}
                   </label>
@@ -303,7 +309,9 @@ export default function Sidebar() {
                         <button
                           className="gradient-button"
                           onClick={whatsAppIntegration.saveCredentials}
-                          disabled={!whatsAppIntegration.isValidated || connected}
+                          disabled={
+                            !whatsAppIntegration.isValidated || connected
+                          }
                         >
                           Save
                         </button>

@@ -632,20 +632,20 @@ export const useGoogleIntegrationStore = create(
  * WhatsApp Integration Admin Settings
  */
 interface WhatsAppIntegrationState {
-  // Admin server settings
-  phoneNumberId: string;
-  wabaId: string; // WhatsApp Business Account ID
-  accessToken: string;
+  // Admin server settings (for Twilio)
+  accountSid: string;
+  authToken: string;
+  twilioPhoneNumber: string;
   isConfigured: boolean;
   isValidated: boolean;
   errors: {
-    phoneNumberId?: string;
-    wabaId?: string;
-    accessToken?: string;
+    accountSid?: string;
+    authToken?: string;
+    twilioPhoneNumber?: string;
   };
-  setPhoneNumberId: (id: string) => void;
-  setWabaId: (id: string) => void;
-  setAccessToken: (token: string) => void;
+  setAccountSid: (id: string) => void;
+  setAuthToken: (id: string) => void;
+  setTwilioPhoneNumber: (token: string) => void;
   validateCredentials: () => boolean;
   saveCredentials: () => void;
   sendMessage: (
@@ -668,34 +668,35 @@ interface WhatsAppIntegrationState {
 export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
   persist(
     (set, get) => ({
-      // Admin server settings
-      phoneNumberId: '169412612933088',
-      wabaId: '235412396315733',
-      accessToken:
-        'EAANrPCBVeQgBPkLlhkO0W6Xo3A7vVKRkJWZBhw9hjp2WQCi5G7FPee8Iwwuk5dbbNlwa9DLvXyt03Nl8QOd9Wxxuu7q5VKLQS06ZCN4o7xUZBj0n6ZCklN49PoxEP4vP9V5yXiCIZBZC61ZApKvcMeoTEZCBgNKsXZCsRhU8XqaNRUDl1zgGdrgRMMVAdHwdoksHZCdKsmh6DBZBteLOWhuuJ2UbigZD',
-      isConfigured: true,
+      // Admin server settings for Twilio
+      accountSid: '',
+      authToken: '',
+      twilioPhoneNumber: '',
+      isConfigured: false,
       isValidated: false,
       errors: {},
-      setPhoneNumberId: id =>
-        set({ phoneNumberId: id, isValidated: false, errors: {} }),
-      setWabaId: id => set({ wabaId: id, isValidated: false, errors: {} }),
-      setAccessToken: token =>
-        set({ accessToken: token, isValidated: false, errors: {} }),
+      setAccountSid: sid =>
+        set({ accountSid: sid, isValidated: false, errors: {} }),
+      setAuthToken: token =>
+        set({ authToken: token, isValidated: false, errors: {} }),
+      setTwilioPhoneNumber: number =>
+        set({ twilioPhoneNumber: number, isValidated: false, errors: {} }),
       validateCredentials: () => {
-        const { phoneNumberId, wabaId, accessToken } = get();
+        const { accountSid, authToken, twilioPhoneNumber } = get();
         const newErrors: WhatsAppIntegrationState['errors'] = {};
         let isValid = true;
 
-        if (!phoneNumberId) {
-          newErrors.phoneNumberId = 'Phone Number ID is required.';
+        if (!accountSid || !accountSid.startsWith('AC')) {
+          newErrors.accountSid = 'A valid Account SID starting with "AC" is required.';
           isValid = false;
         }
-        if (!wabaId) {
-          newErrors.wabaId = 'WhatsApp Business Account ID is required.';
+        if (!authToken) {
+          newErrors.authToken = 'Auth Token is required.';
           isValid = false;
         }
-        if (!accessToken) {
-          newErrors.accessToken = 'Access Token is required.';
+        if (!twilioPhoneNumber || !twilioPhoneNumber.startsWith('+')) {
+          newErrors.twilioPhoneNumber =
+            'A valid phone number in E.164 format (e.g., +1234567890) is required.';
           isValid = false;
         }
 
@@ -705,88 +706,66 @@ export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
       saveCredentials: () => {
         const isValid = get().validateCredentials();
         if (isValid) {
-          console.log('Saving WhatsApp credentials (simulated)...');
+          console.log('Saving Twilio credentials (simulated)...');
           set({ isConfigured: true });
         }
       },
-      sendMessage: async (recipientPhoneNumber: string, message: string) => {
-        const { isConfigured, phoneNumberId, accessToken, isUserConnected } =
-          get();
+      sendMessage: async (recipientPhoneNumber, messageBody) => {
+        const {
+          isConfigured,
+          isUserConnected,
+          accountSid,
+          authToken,
+          twilioPhoneNumber,
+        } = get();
 
         if (!isConfigured) {
-          return 'WhatsApp is not configured by the admin.';
+          return 'Twilio integration is not configured by the admin.';
         }
         if (!isUserConnected) {
-          return 'User has not connected their WhatsApp account.';
+          return 'User has not connected their WhatsApp account via settings.';
+        }
+        if (!recipientPhoneNumber || !messageBody) {
+          return 'Missing required parameters. I need a recipient phone number and a message body.';
         }
 
-        try {
-          const response = await fetch(
-            `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                messaging_product: 'whatsapp',
-                to: recipientPhoneNumber,
-                type: 'text',
-                text: { body: message },
-              }),
-            },
-          );
-
-          const data = await response.json();
-          if (!response.ok) {
-            console.error('WhatsApp API Error:', data);
-            return data.error?.message || 'Failed to send WhatsApp message.';
-          }
-          return 'WhatsApp message sent successfully.';
-        } catch (error) {
-          console.error('Error sending WhatsApp message:', error);
-          return `An error occurred while sending the message: ${
-            (error as Error).message
-          }`;
-        }
+        // This simulates a server-side fetch to Twilio's API
+        const from = `whatsapp:${twilioPhoneNumber}`;
+        const to = `whatsapp:${recipientPhoneNumber}`;
+        console.log(
+          `(Simulated Server Call) Sending WhatsApp message via Twilio:
+          - Account SID: ${accountSid}
+          - From: ${from}
+          - To: ${to}
+          - Body: ${messageBody}`,
+        );
+        return 'Twilio WhatsApp message sent successfully (simulated).';
       },
-      readChatHistory: async (
-        contact_name_or_phone: string,
-        message_count = 10,
-      ) => {
+      readChatHistory: async (contact_name_or_phone, message_count = 10) => {
         const { isUserConnected } = get();
         if (!isUserConnected) {
           return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
         }
-        // This is a mocked implementation
-        console.log(
-          `Reading last ${message_count} messages from ${contact_name_or_phone}`,
-        );
-        return `(Mocked Response) Last 3 messages from ${contact_name_or_phone}:\n- Hey, are you free later?\n- Nevermind, something came up.\n- Talk to you tomorrow!`;
+        // This is a mocked implementation. A real app would query a database populated by Twilio webhooks.
+        return `(Mocked Server Response) Reading last ${message_count} messages for ${contact_name_or_phone} from server database:
+- User: "Hey, can we reschedule?"
+- You: "Sure, how about tomorrow at 2 PM?"`;
       },
       searchContact: async (contact_name: string) => {
         const { isUserConnected } = get();
         if (!isUserConnected) {
           return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
         }
-        // This is a mocked implementation
-        console.log(`Searching for contact: ${contact_name}`);
-        if (contact_name.toLowerCase().includes('jane')) {
-          return `Found contact: Jane Doe (+1-555-555-5555).`;
-        }
-        return `No contact found matching the name "${contact_name}".`;
+        // This is a mocked implementation. Twilio does not have a contact search API.
+        return `(Mocked Server Response) The Twilio API does not support searching contacts by name. A real application would look up '${contact_name}' in its own database. For this demo, I've found a matching number: +15551234567.`;
       },
       // User-specific settings
       isUserConnected: false,
       userPhoneNumber: null,
       connectUser: (phoneNumber: string) => {
-        // In a real app, you'd have an API call here to verify and connect.
-        // For now, we'll just update the state.
         set({ isUserConnected: true, userPhoneNumber: phoneNumber });
         const { user } = useAuthStore.getState();
         if (user?.email) {
-          // Persist connection to Supabase
           supabase
             .from('user_settings')
             .upsert({
@@ -804,7 +783,6 @@ export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
         set({ isUserConnected: false, userPhoneNumber: null });
         const { user } = useAuthStore.getState();
         if (user?.email) {
-          // Update Supabase
           supabase
             .from('user_settings')
             .upsert({
@@ -819,12 +797,11 @@ export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
       },
     }),
     {
-      name: 'whatsapp-integration-storage',
-      // Only persist admin settings, not user connection status
+      name: 'twilio-whatsapp-integration-storage',
       partialize: state => ({
-        phoneNumberId: state.phoneNumberId,
-        wabaId: state.wabaId,
-        accessToken: state.accessToken,
+        accountSid: state.accountSid,
+        authToken: state.authToken,
+        twilioPhoneNumber: state.twilioPhoneNumber,
         isConfigured: state.isConfigured,
       }),
     },

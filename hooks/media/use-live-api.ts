@@ -164,41 +164,21 @@ async function handleSaveMemory(args: any) {
 }
 
 async function handleSendWhatsAppMessage(args: any) {
-  const { isUserConnected, sendMessage } =
-    useWhatsAppIntegrationStore.getState();
-
-  if (!isUserConnected) {
-    return 'User is not connected to WhatsApp. Please ask them to connect their account through the settings.';
-  }
-
-  const { recipient_phone_number, message_body } = args;
-  if (!recipient_phone_number || !message_body) {
-    return 'Missing required parameters for sending a WhatsApp message. I need a recipient phone number and a message body.';
-  }
-
-  return await sendMessage(recipient_phone_number, message_body);
+  return useWhatsAppIntegrationStore
+    .getState()
+    .sendMessage(args.recipient_phone_number, args.message_body);
 }
 
 async function handleReadWhatsAppChatHistory(args: any) {
-  const { readChatHistory } = useWhatsAppIntegrationStore.getState();
-  const { contact_name_or_phone, message_count } = args;
-
-  if (!contact_name_or_phone) {
-    return 'Missing required contact name or phone number to read chat history.';
-  }
-  
-  return await readChatHistory(contact_name_or_phone, message_count);
+  return useWhatsAppIntegrationStore
+    .getState()
+    .readChatHistory(args.contact_name_or_phone, args.message_count);
 }
 
 async function handleSearchWhatsAppContact(args: any) {
-  const { searchContact } = useWhatsAppIntegrationStore.getState();
-  const { contact_name } = args;
-
-  if (!contact_name) {
-    return 'Missing required contact name to search for.';
-  }
-  
-  return await searchContact(contact_name);
+  return useWhatsAppIntegrationStore
+    .getState()
+    .searchContact(args.contact_name);
 }
 
 interface DriveFile {
