@@ -118,12 +118,16 @@ function ControlTray() {
       stream.getTracks().forEach(track => track.stop());
       connectionInitiated.current = true;
       connect();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error requesting microphone permission:', err);
+      let message =
+        'Could not start microphone. Please check your browser settings.';
+      if (err.name === 'NotAllowedError') {
+        message =
+          'Microphone access denied. Please enable it in your browser settings to use voice features.';
+      }
       // Show a message to the user if permission is denied.
-      useUI
-        .getState()
-        .showSnackbar('Microphone access is required for voice calls.');
+      useUI.getState().showSnackbar(message);
     }
   };
 

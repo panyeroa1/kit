@@ -120,9 +120,14 @@ const VoiceCall = () => {
           // Component unmounted after await, but before assignment
           stream.getTracks().forEach(track => track.stop());
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error accessing camera:', err);
         if (!cancelled) {
+          let message = 'Could not access camera. Please check your browser settings.';
+          if (err.name === 'NotAllowedError') {
+            message = 'Camera access denied. Please enable it in your browser settings.';
+          }
+          useUI.getState().showSnackbar(message);
           setIsCameraOn(false); // Turn off toggle if permission is denied
         }
       }

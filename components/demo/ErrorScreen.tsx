@@ -4,6 +4,7 @@
 */
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import React, { useEffect, useState } from 'react';
+import cn from 'classnames';
 
 export interface ExtendedErrorType {
   code?: number;
@@ -29,20 +30,17 @@ export default function ErrorScreen() {
   }, [client]);
 
   const quotaErrorMessage =
-    'Gemini Live API in AI Studio has a limited free quota each day. Come back tomorrow to continue.';
-
-  let errorMessage = 'Something went wrong. Please try again.';
-  let rawMessage: string | null = error?.message || null;
-  let tryAgainOption = true;
-  if (error?.message?.includes('RESOURCE_EXHAUSTED')) {
-    errorMessage = quotaErrorMessage;
-    rawMessage = null;
-    tryAgainOption = false;
-  }
+    'Daily free quota for the Gemini Live API has been reached. Please come back tomorrow to continue.';
 
   if (!error) {
     return <div style={{ display: 'none' }} />;
   }
+
+  const isQuotaError = !!error?.message?.includes('RESOURCE_EXHAUSTED');
+  const errorMessage = isQuotaError
+    ? quotaErrorMessage
+    : 'An unexpected error occurred. Please try again.';
+  const rawMessage: string | null = isQuotaError ? null : error?.message || null;
 
   return (
     <div className="error-screen">
@@ -54,33 +52,23 @@ export default function ErrorScreen() {
         💔
       </div>
       <div
-        className="error-message-container"
-        style={{
-          fontSize: 22,
-          lineHeight: 1.2,
-          opacity: 0.5,
-        }}
+        className={cn('error-message-container', { 'quota-error': isQuotaError })}
       >
         {errorMessage}
       </div>
-      {tryAgainOption ? (
+      {!isQuotaError && (
         <button
           className="close-button"
           onClick={() => {
-            setError(null);
+            window.location.reload();
           }}
         >
-          Close
+          Try Again
         </button>
-      ) : null}
+      )}
       {rawMessage ? (
         <div
           className="error-raw-message-container"
-          style={{
-            fontSize: 15,
-            lineHeight: 1.2,
-            opacity: 0.4,
-          }}
         >
           {rawMessage}
         </div>

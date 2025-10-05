@@ -86,7 +86,10 @@ async function handleSendEmail(
     const data = await response.json();
     if (!response.ok) {
       console.error('Gmail API error:', data);
-      return `Failed to send email: ${data.error.message}`;
+      const errorMessage =
+        data?.error?.message ||
+        `Failed to send email. Status: ${response.status}`;
+      return `Failed to send email: ${errorMessage}`;
     }
     return 'Email sent successfully.';
   } catch (error) {
@@ -121,7 +124,12 @@ async function handleReadEmails(
       },
     );
     const listData = await listResponse.json();
-    if (!listResponse.ok) throw new Error(listData.error.message);
+    if (!listResponse.ok) {
+      const errorMessage =
+        listData?.error?.message ||
+        `Gmail API error: ${listResponse.statusText}`;
+      throw new Error(errorMessage);
+    }
 
     if (!listData.messages || listData.messages.length === 0) {
       return 'No matching emails found.';
@@ -252,7 +260,12 @@ async function handleReadSheetData(
       headers: { Authorization: `Bearer ${auth.accessToken}` },
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error.message);
+    if (!response.ok) {
+      const errorMessage =
+        data?.error?.message ||
+        `Google Sheets API error: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
 
     if (!data.values || data.values.length === 0) {
       return `No data found in range ${range}.`;
@@ -290,7 +303,12 @@ async function handleListCalendarEvents(
       headers: { Authorization: `Bearer ${auth.accessToken}` },
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error.message);
+    if (!response.ok) {
+      const errorMessage =
+        data?.error?.message ||
+        `Google Calendar API error: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
 
     if (!data.items || data.items.length === 0) {
       return 'No upcoming events found on your calendar.';
@@ -349,7 +367,12 @@ async function handleCreateCalendarEvent(
       },
     );
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error.message);
+    if (!response.ok) {
+      const errorMessage =
+        data?.error?.message ||
+        `Google Calendar API error: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
     return `Event "${summary}" created successfully.`;
   } catch (error) {
     console.error('Error creating calendar event:', error);
