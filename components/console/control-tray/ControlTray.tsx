@@ -11,7 +11,7 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law law or agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -91,8 +91,22 @@ function ControlTray() {
     };
   }, [connected, client, muted, audioRecorder, isVoiceCallActive]);
 
-  const handleShowVoiceCall = () => {
-    showVoiceCall();
+  const handleShowVoiceCall = async () => {
+    try {
+      // Request microphone permission.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately stop the tracks to free up the microphone,
+      // as AudioRecorder will request it again.
+      stream.getTracks().forEach(track => track.stop());
+      // If permission is granted, show the voice call UI.
+      showVoiceCall();
+    } catch (err) {
+      console.error('Error requesting microphone permission:', err);
+      // Show a message to the user if permission is denied.
+      useUI
+        .getState()
+        .showSnackbar('Microphone access is required for voice calls.');
+    }
   };
 
   const handleMuteToggle = () => {
