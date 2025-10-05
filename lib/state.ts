@@ -127,6 +127,92 @@ export const businessAssistantTools: FunctionCall[] = [
     isEnabled: true,
     scheduling: FunctionResponseScheduling.INTERRUPT,
   },
+  {
+    name: 'list_drive_files',
+    description: "Lists files from the user's Google Drive. Can be filtered by a search query.",
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        count: {
+          type: 'NUMBER',
+          description: 'The maximum number of files to return. Defaults to 10.',
+        },
+        query: {
+          type: 'STRING',
+          description: 'A search query to filter files. For example, "name contains \'report\'".',
+        },
+      },
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
+  {
+    name: 'read_sheet_data',
+    description: 'Reads data from a specified range in a Google Sheet.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        spreadsheetId: {
+          type: 'STRING',
+          description: 'The ID of the Google Sheet to read from.',
+        },
+        range: {
+          type: 'STRING',
+          description: 'The A1 notation of the range to retrieve. For example, "Sheet1!A1:B5".',
+        },
+      },
+      required: ['spreadsheetId', 'range'],
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
+  {
+    name: 'list_calendar_events',
+    description: 'Lists upcoming events from the user\'s primary Google Calendar.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        count: {
+          type: 'NUMBER',
+          description: 'The maximum number of events to return. Defaults to 10.',
+        },
+      },
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
+  {
+    name: 'create_calendar_event',
+    description: 'Creates a new event in the user\'s primary Google Calendar.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        summary: {
+          type: 'STRING',
+          description: 'The title or summary of the event.',
+        },
+        location: {
+          type: 'STRING',
+          description: 'The location of the event.',
+        },
+        description: {
+          type: 'STRING',
+          description: 'A description of the event.',
+        },
+        startDateTime: {
+          type: 'STRING',
+          description: 'The start time of the event in ISO 8601 format. E.g., "2024-08-15T10:00:00-07:00".',
+        },
+        endDateTime: {
+          type: 'STRING',
+          description: 'The end time of the event in ISO 8601 format. E.g., "2024-08-15T11:00:00-07:00".',
+        },
+      },
+      required: ['summary', 'startDateTime', 'endDateTime'],
+    },
+    isEnabled: true,
+    scheduling: FunctionResponseScheduling.INTERRUPT,
+  },
 ];
 
 export type Template =

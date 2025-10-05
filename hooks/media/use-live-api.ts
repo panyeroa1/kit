@@ -201,6 +201,170 @@ async function handleSearchWhatsAppContact(args: any) {
   return await searchContact(contact_name);
 }
 
+async function handleListDriveFiles(
+  args: any,
+  auth: { isGoogleConnected: boolean; accessToken: string | null },
+) {
+  if (!auth.isGoogleConnected || !auth.accessToken) {
+    return 'User is not connected to Google. Please ask them to sign in with their Google account.';
+  }
+
+  const { count = 10, query } = args;
+  const baseUrl = 'https://www.googleapis.com/drive/v3/files';
+  const params = new URLSearchParams({
+    pageSize: count.toString(),
+    fields: 'files(id, name, mimeType, webViewLink)',
+  });
+  if (query) {
+    params.append('q', query);
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error.message);
+
+    if (!data.files || data.files.length === 0) {
+      return 'No files found in Google Drive.';
+    }
+
+    const fileSummaries = data.files
+      .map((file: any) => `Name: ${file.name}, Type: ${file.mimeType}`)
+      .join('\n- ');
+    return `Here are the files I found:\n- ${fileSummaries}`;
+  } catch (error) {
+    console.error('Error listing Drive files:', error);
+    return `An error occurred while listing Drive files: ${(error as Error).message}`;
+  }
+}
+
+async function handleReadSheetData(
+  args: any,
+  auth: { isGoogleConnected: boolean; accessToken: string | null },
+) {
+  if (!auth.isGoogleConnected || !auth.accessToken) {
+    return 'User is not connected to Google. Please ask them to sign in with their Google account.';
+  }
+
+  const { spreadsheetId, range } = args;
+  if (!spreadsheetId || !range) {
+    return 'Missing spreadsheet ID or range to read data.';
+  }
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error.message);
+
+    if (!data.values || data.values.length === 0) {
+      return `No data found in range ${range}.`;
+    }
+
+    const formattedData = data.values
+      .map((row: any[]) => row.join(', '))
+      .join('\n');
+    return `Here is the data from the sheet:\n${formattedData}`;
+  } catch (error) {
+    console.error('Error reading Sheet data:', error);
+    return `An error occurred while reading the sheet: ${(error as Error).message}`;
+  }
+}
+
+async function handleListCalendarEvents(
+  args: any,
+  auth: { isGoogleConnected: boolean; accessToken: string | null },
+) {
+  if (!auth.isGoogleConnected || !auth.accessToken) {
+    return 'User is not connected to Google. Please ask them to sign in with their Google account.';
+  }
+
+  const { count = 10 } = args;
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events`;
+  const params = new URLSearchParams({
+    maxResults: count.toString(),
+    orderBy: 'startTime',
+    singleEvents: 'true',
+    timeMin: new Date().toISOString(),
+  });
+
+  try {
+    const response = await fetch(`${url}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error.message);
+
+    if (!data.items || data.items.length === 0) {
+      return 'No upcoming events found on your calendar.';
+    }
+
+    const eventSummaries = data.items
+      .map((event: any) => {
+        const start = event.start.dateTime || event.start.date;
+        return `${event.summary} at ${new Date(start).toLocaleString()}`;
+      })
+      .join('\n- ');
+    return `Here are your upcoming events:\n- ${eventSummaries}`;
+  } catch (error) {
+    console.error('Error listing calendar events:', error);
+    return `An error occurred while listing calendar events: ${(error as Error).message}`;
+  }
+}
+
+async function handleCreateCalendarEvent(
+  args: any,
+  auth: { isGoogleConnected: boolean; accessToken: string | null },
+) {
+  if (!auth.isGoogleConnected || !auth.accessToken) {
+    return 'User is not connected to Google. Please ask them to sign in with their Google account.';
+  }
+
+  const { summary, location, description, startDateTime, endDateTime } = args;
+  if (!summary || !startDateTime || !endDateTime) {
+    return 'Missing required information to create an event. I need at least a summary, start time, and end time.';
+  }
+
+  const event = {
+    summary,
+    location,
+    description,
+    start: {
+      dateTime: startDateTime,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    end: {
+      dateTime: endDateTime,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+  };
+
+  try {
+    const response = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(event),
+      },
+    );
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error.message);
+    return `Event "${summary}" created successfully.`;
+  } catch (error) {
+    console.error('Error creating calendar event:', error);
+    return `An error occurred while creating the event: ${(error as Error).message}`;
+  }
+}
+
 export function useLiveApi({
   apiKey,
 }: {
@@ -317,6 +481,30 @@ export function useLiveApi({
             break;
           case 'search_whatsapp_contact':
             resultPromise = handleSearchWhatsAppContact(fc.args);
+            break;
+          case 'list_drive_files':
+            resultPromise = handleListDriveFiles(fc.args, {
+              isGoogleConnected,
+              accessToken,
+            });
+            break;
+          case 'read_sheet_data':
+            resultPromise = handleReadSheetData(fc.args, {
+              isGoogleConnected,
+              accessToken,
+            });
+            break;
+          case 'list_calendar_events':
+            resultPromise = handleListCalendarEvents(fc.args, {
+              isGoogleConnected,
+              accessToken,
+            });
+            break;
+          case 'create_calendar_event':
+            resultPromise = handleCreateCalendarEvent(fc.args, {
+              isGoogleConnected,
+              accessToken,
+            });
             break;
           default:
             resultPromise = Promise.resolve('ok'); // Default for other tools
