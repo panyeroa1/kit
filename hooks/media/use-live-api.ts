@@ -371,9 +371,9 @@ export function useLiveApi({
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
 
   const [volume, setVolume] = useState(0);
-  const [connected, setConnected] = useState(false);
   const [status, setStatus] =
     useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  const connected = status === 'connected';
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
 
@@ -405,14 +405,6 @@ export function useLiveApi({
   }, [audioStreamerRef]);
 
   useEffect(() => {
-    const onOpen = () => {
-      setConnected(true);
-    };
-
-    const onClose = () => {
-      setConnected(false);
-    };
-
     const onStatus = (s: 'connected' | 'disconnected' | 'connecting') => {
       setStatus(s);
     };
@@ -430,8 +422,6 @@ export function useLiveApi({
     };
 
     // Bind event listeners
-    client.on('open', onOpen);
-    client.on('close', onClose);
     client.on('status', onStatus);
     client.on('interrupted', stopAudioStreamer);
     client.on('audio', onAudio);
@@ -539,8 +529,6 @@ export function useLiveApi({
 
     return () => {
       // Clean up event listeners
-      client.off('open', onOpen);
-      client.off('close', onClose);
       client.off('status', onStatus);
       client.off('interrupted', stopAudioStreamer);
       client.off('audio', onAudio);
@@ -561,8 +549,7 @@ export function useLiveApi({
 
   const disconnect = useCallback(async () => {
     client.disconnect();
-    setConnected(false);
-  }, [setConnected, client]);
+  }, [client]);
 
   return {
     client,

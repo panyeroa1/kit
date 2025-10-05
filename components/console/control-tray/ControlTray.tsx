@@ -263,7 +263,7 @@ function ControlTray() {
                 onClick={showVoiceCall}
                 aria-label="Return to voice call"
               >
-                <span className="material-symbols-outlined filled">close</span>
+                <span className="material-symbols-outlined filled">call</span>
               </button>
             ) : (
               <button

@@ -81,7 +81,8 @@ export class GenAILiveClient {
   protected session?: Session;
   private sessionPromise: Promise<Session> | null = null;
 
-  private _status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
+  private _status: 'connected' | 'disconnected' | 'connecting' =
+    'disconnected';
   public get status() {
     return this._status;
   }
@@ -158,7 +159,10 @@ export class GenAILiveClient {
   public send(parts: Part | Part[], turnComplete: boolean = true) {
     if (this.status !== 'connected' || !this.session) {
       // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
-      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
+      this.emitter.emit(
+        'error',
+        new ErrorEvent('error', { message: 'Client is not connected' }),
+      );
       return;
     }
     this.session.sendClientContent({ turns: parts, turnComplete });
@@ -208,7 +212,10 @@ export class GenAILiveClient {
   public sendToolResponse(toolResponse: LiveClientToolResponse) {
     if (this.status !== 'connected' || !this.session) {
       // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
-      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
+      this.emitter.emit(
+        'error',
+        new ErrorEvent('error', { message: 'Client is not connected' }),
+      );
       return;
     }
     if (
@@ -298,7 +305,9 @@ export class GenAILiveClient {
         });
 
         if (otherParts.length > 0) {
-          const content: LiveServerContent = { modelTurn: { parts: otherParts } };
+          const content: LiveServerContent = {
+            modelTurn: { parts: otherParts },
+          };
           // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
           this.emitter.emit('content', content);
           this.log(`server.content`, message);
@@ -342,7 +351,7 @@ export class GenAILiveClient {
 
     this.log(
       `server.${e.type}`,
-      `disconnected ${reason ? `with reason: ${reason}` : ``}`
+      `disconnected ${reason ? `with reason: ${reason}` : ``}`,
     );
     // FIX: Changed this.emit to this.emitter.emit to fix property not existing on type error.
     this.emitter.emit('close', e);
