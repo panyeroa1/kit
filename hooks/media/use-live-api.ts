@@ -201,8 +201,15 @@ async function handleSearchWhatsAppContact(args: any) {
   return await searchContact(contact_name);
 }
 
+interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  webViewLink: string;
+}
+
 async function handleListDriveFiles(
-  args: any,
+  args: { count?: number; query?: string },
   auth: { isGoogleConnected: boolean; accessToken: string | null },
 ) {
   if (!auth.isGoogleConnected || !auth.accessToken) {
@@ -224,14 +231,18 @@ async function handleListDriveFiles(
       headers: { Authorization: `Bearer ${auth.accessToken}` },
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error.message);
+    if (!response.ok) {
+        const errorMessage = data?.error?.message || `Google Drive API error: ${response.statusText}`;
+        throw new Error(errorMessage);
+    }
+
 
     if (!data.files || data.files.length === 0) {
       return 'No files found in Google Drive.';
     }
 
     const fileSummaries = data.files
-      .map((file: any) => `Name: ${file.name}, Type: ${file.mimeType}`)
+      .map((file: DriveFile) => `Name: ${file.name}, Type: ${file.mimeType}`)
       .join('\n- ');
     return `Here are the files I found:\n- ${fileSummaries}`;
   } catch (error) {
