@@ -61,7 +61,7 @@ export default function StreamingConsole() {
   const { voice, getSystemPrompt } = useUserSettings();
   const { session } = useAuthStore();
   const isGoogleConnected = !!session?.provider_token;
-  const { tools: templateTools } = useTools();
+  const { tools } = useTools();
   const turns = useLogStore(state => state.turns);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { setEditingImage } = useUI();
@@ -83,7 +83,7 @@ export default function StreamingConsole() {
       : [];
 
     const allTools = [
-      ...templateTools.filter(t => t.isEnabled),
+      ...tools.filter(t => t.isEnabled),
       ...gmailTools,
       ...coreTools,
     ];
@@ -122,7 +122,7 @@ export default function StreamingConsole() {
     };
 
     setConfig(config);
-  }, [setConfig, getSystemPrompt, voice, templateTools, isGoogleConnected]);
+  }, [setConfig, getSystemPrompt, voice, tools, isGoogleConnected]);
 
   useEffect(() => {
     const { addTurn, updateLastTurn } = useLogStore.getState();

@@ -4,10 +4,6 @@
 */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { customerSupportTools } from './tools/customer-support';
-import { personalAssistantTools } from './tools/personal-assistant';
-import { navigationSystemTools } from './tools/navigation-system';
-
 import { DEFAULT_LIVE_API_MODEL, DEFAULT_VOICE } from './constants';
 import {
   FunctionResponse,
@@ -18,7 +14,6 @@ import {
 } from '@google/genai';
 import { supabase } from './supabase';
 import { Session, User } from '@supabase/supabase-js';
-import { TEXT_CHAT_SYSTEM_INSTRUCTION } from './prompts';
 
 export const businessAssistantTools: FunctionCall[] = [
   {
@@ -223,13 +218,6 @@ export type Template =
   | 'personal-assistant'
   | 'navigation-system'
   | 'business-assistant';
-
-const toolsets: Record<Template, FunctionCall[]> = {
-  'customer-support': customerSupportTools,
-  'personal-assistant': personalAssistantTools,
-  'navigation-system': navigationSystemTools,
-  'business-assistant': businessAssistantTools,
-};
 
 /**
  * Settings
@@ -859,18 +847,12 @@ export interface FunctionCall {
 
 export const useTools = create<{
   tools: FunctionCall[];
-  template: Template;
-  setTemplate: (template: Template) => void;
   toggleTool: (toolName: string) => void;
   addTool: () => void;
   removeTool: (toolName: string) => void;
   updateTool: (oldName: string, updatedTool: FunctionCall) => void;
 }>(set => ({
-  tools: customerSupportTools,
-  template: 'customer-support',
-  setTemplate: (template: Template) => {
-    set({ tools: toolsets[template], template });
-  },
+  tools: businessAssistantTools,
   toggleTool: (toolName: string) =>
     set(state => ({
       tools: state.tools.map(tool =>
@@ -971,11 +953,14 @@ export const useLogStore = create<{
   ) => {
     const { addTurn, updateLastTurn } = get();
     const { editingImage, setEditingImage } = useUI.getState();
+    const { getSystemPrompt } = useUserSettings.getState();
 
     // Determine the image to show in the user's turn log.
     const imageForLog = newImage
       ? `data:${newImage.mimeType};base64,${newImage.data}`
-      : null;
+      : editingImage
+        ? `data:${editingImage.mimeType};base64,${editingImage.data}`
+        : null;
 
     addTurn({
       role: 'user',
@@ -1093,7 +1078,7 @@ export const useLogStore = create<{
       const history = historyTurns
         .map(turn => ({
           role: turn.role === 'agent' ? 'model' : 'user',
-          parts: [{ text: turn.text }],
+          parts: [{ text: turn.text }], // Note: simplified history, not including images
         }))
         .filter(turn => turn.role === 'user' || turn.role === 'model');
 
@@ -1116,7 +1101,7 @@ export const useLogStore = create<{
         model: 'gemini-2.5-flash',
         contents: contents,
         config: {
-          systemInstruction: TEXT_CHAT_SYSTEM_INSTRUCTION,
+          systemInstruction: getSystemPrompt(),
           tools: [{ googleSearch: {} }],
         },
       });
