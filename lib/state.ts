@@ -576,8 +576,9 @@ interface WhatsAppIntegrationState {
   disconnectUser: () => void;
 }
 
-export const useWhatsAppIntegrationStore = create(
-  persist<WhatsAppIntegrationState>(
+// FIX: Refactored to use create<T>()(persist(...)) syntax for proper type inference.
+export const useWhatsAppIntegrationStore = create<WhatsAppIntegrationState>()(
+  persist(
     (set, get) => ({
       // Admin server settings
       phoneNumberId: '169412612933088',
@@ -829,8 +830,9 @@ export interface LiveClientToolResponse {
 }
 export interface GroundingChunk {
   web?: {
-    uri: string;
-    title: string;
+    // FIX: Match @google/genai types by making uri and title optional.
+    uri?: string;
+    title?: string;
   };
 }
 

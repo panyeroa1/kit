@@ -154,7 +154,8 @@ export default function StreamingConsole() {
       if (!text && !groundingChunks) return;
 
       const turns = useLogStore.getState().turns;
-      const last = turns.at(-1);
+      // FIX: Property 'at' does not exist on type 'ConversationTurn[]'.
+      const last = turns[turns.length - 1];
 
       if (last?.role === 'agent' && !last.isFinal) {
         const updatedTurn: Partial<ConversationTurn> = {
@@ -173,7 +174,9 @@ export default function StreamingConsole() {
     };
 
     const handleTurnComplete = () => {
-      const last = useLogStore.getState().turns.at(-1);
+      // FIX: Property 'at' does not exist on type 'ConversationTurn[]'.
+      const turns = useLogStore.getState().turns;
+      const last = turns[turns.length - 1];
       if (last && !last.isFinal) {
         updateLastTurn({ isFinal: true });
       }
@@ -237,7 +240,8 @@ export default function StreamingConsole() {
                   <strong>Sources:</strong>
                   <ul>
                     {t.groundingChunks
-                      .filter(chunk => chunk.web)
+                      // FIX: Ensure web and web.uri exist to prevent rendering broken links.
+                      .filter(chunk => chunk.web && chunk.web.uri)
                       .map((chunk, index) => (
                         <li key={index}>
                           <a
