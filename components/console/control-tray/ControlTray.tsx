@@ -239,7 +239,7 @@ function ControlTray() {
                 ? 'Describe your edits...'
                 : attachedImage
                   ? 'Add a message...'
-                  : 'Ask anything, or create an image...'
+                  : 'Ask anything...'
             }
             value={text}
             onChange={e => setText(e.target.value)}
